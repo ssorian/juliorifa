@@ -1,0 +1,1951 @@
+@font-face {
+  font-family: Condensed;
+  src: url('/fonts/raffles/f05ab6c1eade.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: Condensed;
+  src: url('/fonts/raffles/9bc003d6f29a.ttf') format('truetype');
+  font-weight: 700 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: ROG;
+  src: url('/fonts/raffles/2c5c3ccca9a8.otf') format('opentype');
+  font-weight: 400;
+  font-display: swap;
+}
+.nova-public {
+  --bg: #080812;
+  --panel: #0b0b18;
+  --muted: #aaaab9;
+  --text: #f6f5fa;
+  --red: #ff293f;
+  --line: #2a293c;
+  --heading: Condensed, 'Arial Narrow', sans-serif;
+  --body: Condensed, Arial, sans-serif;
+}
+.nova-public * {
+  box-sizing: border-box;
+}
+.nova-public {
+  scroll-behavior: smooth;
+  scroll-padding-top: 95px;
+}
+.nova-public {
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(ellipse at 49% 25%, #2014439c 0, transparent 58%),
+    radial-gradient(ellipse at 90% 0, #13214a85, transparent 43%), var(--bg);
+  font-family: var(--body);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+}
+.nova-public :has(dialog[open]) {
+  overflow: hidden;
+}
+.nova-public button,
+.nova-public input {
+  font: inherit;
+}
+.nova-public a {
+  color: inherit;
+  text-decoration: none;
+}
+.nova-public button,
+.nova-public a,
+.nova-public input,
+.nova-public summary {
+  -webkit-tap-highlight-color: transparent;
+}
+.nova-public button {
+  cursor: pointer;
+}
+.nova-public button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+.nova-public a:focus-visible,
+.nova-public button:focus-visible,
+.nova-public input:focus-visible,
+.nova-public summary:focus-visible {
+  outline: 2px solid #bbb0ff;
+  outline-offset: 5px;
+}
+.nova-public img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.nova-public em {
+  color: var(--red);
+  font-style: normal;
+}
+.nova-public h1,
+.nova-public h2,
+.nova-public h3,
+.nova-public p {
+  margin: 0;
+}
+.nova-public h1,
+.nova-public h2,
+.nova-public h3 {
+  font-family: var(--heading);
+  font-weight: 700;
+  line-height: 1.08;
+}
+.nova-public h1 {
+  font-size: clamp(2.2rem, 4.3vw, 4rem);
+  letter-spacing: 0.015em;
+}
+.nova-public h2 {
+  font-size: clamp(2.3rem, 4vw, 3.5rem);
+}
+.nova-public h3 {
+  font-size: 1.6rem;
+}
+.nova-public input {
+  min-width: 0;
+  color: #fff;
+  background: #070710;
+  border: 1px solid #383747;
+  border-radius: 0;
+  height: 50px;
+  padding: 0 15px;
+}
+.nova-public input::placeholder {
+  color: #868694;
+}
+.nova-public button {
+  border: 0;
+  border-radius: 0;
+}
+.nova-public section[id] {
+  scroll-margin-top: 90px;
+}
+.nova-public [hidden] {
+  display: none !important;
+}
+.nova-public .noise {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' opacity='.7' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.nova-public header,
+.nova-public main,
+.nova-public footer {
+  position: relative;
+  z-index: 1;
+}
+.nova-public .section-wrap {
+  width: min(1180px, calc(100% - 100px));
+  margin-inline: auto;
+}
+.nova-public .site-header {
+  width: min(1340px, calc(100% - 80px));
+  margin: auto;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  gap: 40px;
+}
+.nova-public .logo {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+  font-family: ROG, Condensed, sans-serif;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.nova-public .logo-mark {
+  font-family: ROG, sans-serif;
+  font-size: 2.8rem;
+  color: var(--red);
+  font-style: italic;
+}
+.nova-public .logo small {
+  display: block;
+  font-family: Condensed, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.55em;
+  margin-top: 8px;
+}
+.nova-public .site-header nav {
+  margin-left: auto;
+  display: flex;
+  gap: 36px;
+  align-items: center;
+}
+.nova-public .site-header nav a {
+  font-size: 1rem;
+  color: #c6c5d2;
+  transition: color 0.2s;
+}
+.nova-public .site-header nav a:hover,
+.nova-public .site-header nav a.active {
+  color: white;
+}
+.nova-public .site-header nav a.active {
+  border-bottom: 2px solid var(--red);
+  padding-block: 10px;
+}
+.nova-public .demo-badge {
+  font-size: 0.75rem;
+  letter-spacing: 0.13em;
+  color: #b2b0c6;
+  border: 1px solid #44415d;
+  padding: 4px 9px;
+}
+.nova-public .side-signal {
+  position: absolute;
+  left: 25px;
+  top: 230px;
+  color: #686277;
+  display: grid;
+  justify-items: center;
+  gap: 40px;
+  font-size: 1.25rem;
+}
+.nova-public .side-signal > span {
+  writing-mode: vertical-rl;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+}
+.nova-public .side-signal i {
+  height: 100px;
+  border-left: 1px solid #49435a;
+}
+.nova-public .side-signal small {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.2em;
+}
+.nova-public .side-word {
+  position: absolute;
+  right: 15px;
+  top: 200px;
+  writing-mode: vertical-rl;
+  font-family: ROG, Condensed, sans-serif;
+  font-size: 2rem;
+  letter-spacing: 0.12em;
+  color: transparent;
+  -webkit-text-stroke: 1px #353047;
+  opacity: 0.75;
+}
+.nova-public .catalog {
+  padding-top: 48px;
+  padding-bottom: 40px;
+}
+.nova-public .section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+.nova-public .eyebrow {
+  color: var(--red);
+  font-size: 0.875rem;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.nova-public .section-index {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  color: #8d87a2;
+  white-space: nowrap;
+}
+.nova-public .product-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+.nova-public .product-card {
+  position: relative;
+  border: 1px solid #343048;
+  background: #080810;
+  transition:
+    transform 0.2s,
+    border-color 0.2s;
+  min-width: 0;
+}
+.nova-public .product-card:hover {
+  transform: translateY(-5px);
+  border-color: #a63550;
+}
+.nova-public .product-image-link {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  background: #080811;
+}
+.nova-public .product-image-link img {
+  aspect-ratio: 3/2;
+  object-fit: cover;
+  transition: transform 0.5s;
+}
+.nova-public .product-card:hover img {
+  transform: scale(1.045);
+}
+.nova-public .product-badge {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  background: #100d1deb;
+  backdrop-filter: blur(6px);
+  border-left: 2px solid var(--red);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  padding: 5px 9px;
+}
+.nova-public .image-index {
+  position: absolute;
+  bottom: 10px;
+  right: 13px;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: #b1a6cb;
+}
+.nova-public .product-card- {
+  padding: 22px;
+}
+.nova-public .product-category {
+  font-size: 0.8125rem;
+  color: var(--red);
+  letter-spacing: 0.09em;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.nova-public .product-card h2 {
+  font-size: 1.9rem;
+  min-height: 2.1em;
+}
+.nova-public .product-spec {
+  color: var(--muted);
+  font-size: 0.9375rem;
+  margin-top: 7px;
+}
+.nova-public .raffle-meta {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+.nova-public .raffle-price {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.nova-public .raffle-price strong {
+  font-size: 2rem;
+  line-height: 1;
+  color: #fff;
+}
+.nova-public .raffle-price small {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.nova-public .raffle-date {
+  color: #bcb8ca;
+  text-align: right;
+  font-size: 0.8125rem;
+}
+.nova-public .progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: #9f99b2;
+  margin-top: 20px;
+  margin-bottom: 6px;
+}
+.nova-public .progress {
+  height: 3px;
+  background: #292539;
+}
+.nova-public .progress span {
+  display: block;
+  height: 100%;
+  background: var(--red);
+}
+.nova-public .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  font-family: var(--heading);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  min-height: 49px;
+  padding: 12px 24px;
+  transition:
+    background 0.2s,
+    color 0.2s;
+  line-height: 1.2;
+}
+.nova-public .primary {
+  background: var(--red);
+  color: #fff;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%
+  );
+}
+.nova-public .primary:hover:not(:disabled) {
+  background: #e31730;
+}
+.nova-public .product-card .button {
+  margin-top: 22px;
+  width: 100%;
+}
+.nova-public .secondary {
+  background: #211d33;
+  color: #fff;
+  border: 1px solid #49415f;
+}
+.nova-public .secondary:hover {
+  background: #383046;
+}
+.nova-public .small {
+  font-size: 0.875rem;
+  padding: 10px 19px;
+  min-height: 50px;
+}
+.nova-public .catalog-note {
+  text-align: center;
+  font-size: 0.9375rem;
+  color: #a39bb6;
+  margin-top: 25px;
+}
+.nova-public .catalog-note span {
+  color: var(--red);
+  margin-right: 8px;
+}
+.nova-public .cta-section {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  padding: 62px 60px;
+  background: linear-gradient(100deg, #130e25d9, #1511258a);
+  border-block: 1px solid #3c2c51;
+  margin-top: 38px;
+}
+.nova-public .cta-section h2 {
+  font-size: clamp(3rem, 5.5vw, 5rem);
+}
+.nova-public .cta-section p:not(.eyebrow) {
+  margin-top: 20px;
+  color: #bbb3ca;
+}
+.nova-public .cta-section .button {
+  margin-top: 28px;
+  min-width: 270px;
+}
+.nova-public .cta-line {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 95px;
+  height: 3px;
+  background: var(--red);
+}
+.nova-public .cta-art {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+}
+.nova-public .outline-word {
+  position: absolute;
+  top: 8%;
+  font-family: ROG, Condensed, sans-serif;
+  color: transparent;
+  -webkit-text-stroke: 1px #493958;
+  font-size: clamp(3rem, 7vw, 6.3rem);
+  letter-spacing: 0.08em;
+  transform: rotate(-8deg);
+}
+.nova-public .big-number {
+  font-family: var(--heading);
+  font-size: clamp(7rem, 16vw, 14rem);
+  font-weight: 700;
+  line-height: 1;
+  transform: skew(-8deg);
+  text-shadow: 8px 8px 0 #05050e;
+  z-index: 1;
+}
+.nova-public .big-number span {
+  color: var(--red);
+}
+.nova-public .ticket-line {
+  margin-top: 25px;
+  letter-spacing: 0.2em;
+  font-size: 0.75rem;
+  color: #9d8fae;
+  z-index: 1;
+  border-top: 1px solid #635171;
+  padding-top: 14px;
+}
+.nova-public .how-section {
+  padding-top: 100px;
+}
+.nova-public .section-intro {
+  max-width: 650px;
+  color: #bbb6cc;
+  font-size: 1.125rem;
+  line-height: 1.65;
+  margin-bottom: 38px;
+}
+.nova-public .steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.nova-public .steps article {
+  position: relative;
+  padding: 34px 32px 38px 0;
+}
+.nova-public .steps article + article {
+  padding-left: 32px;
+  border-left: 1px solid var(--line);
+}
+.nova-public .step-number {
+  position: absolute;
+  right: 26px;
+  top: 25px;
+  color: #5e536f;
+  font-size: 2.25rem;
+  font-weight: 700;
+}
+.nova-public .step-icon {
+  font-size: 2.3rem;
+  color: var(--red);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+.nova-public .steps h3 {
+  font-size: 1.6rem;
+  margin-bottom: 13px;
+}
+.nova-public .steps p {
+  color: #aaa4be;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+.nova-public .demo-note {
+  font-size: 0.8125rem;
+  color: #8f879f;
+  line-height: 1.6;
+  margin-top: 24px;
+}
+.nova-public .faq-section {
+  display: grid;
+  grid-template-columns: 1fr 1.65fr;
+  gap: 70px;
+  padding-block: 110px 95px;
+}
+.nova-public .faq-heading h2 {
+  font-size: 3.25rem;
+}
+.nova-public .faq-heading > p:not(.eyebrow) {
+  color: #aba4bc;
+  margin-top: 22px;
+}
+.nova-public .faq-heading .section-index {
+  display: block;
+  margin-top: 32px;
+}
+.nova-public .faq-list details {
+  border-bottom: 1px solid var(--line);
+}
+.nova-public .faq-list details:first-child {
+  border-top: 1px solid var(--line);
+}
+.nova-public summary {
+  list-style: none;
+  cursor: pointer;
+}
+.nova-public summary::-webkit-details-marker {
+  display: none;
+}
+.nova-public .faq-list summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 25px;
+  min-height: 76px;
+  padding-block: 18px;
+  font-size: 1.1875rem;
+  line-height: 1.3;
+}
+.nova-public .faq-list summary > span {
+  color: var(--red);
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+.nova-public .faq-list details[open] summary > span {
+  transform: rotate(45deg);
+}
+.nova-public .faq-list details p {
+  padding: 0 30px 23px 0;
+  color: #aaa4bc;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+.nova-public .site-footer {
+  border-top: 1px solid var(--line);
+  padding-block: 30px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 25px;
+}
+.nova-public .site-footer > span {
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  color: #b1a7c3;
+}
+.nova-public .site-footer > small {
+  font-size: 0.75rem;
+  color: #81788f;
+}
+.nova-public .site-footer .logo {
+  font-size: 1.05rem;
+}
+.nova-public .site-footer .logo-mark {
+  font-size: 2.2rem;
+}
+.nova-public .site-footer .logo small {
+  font-size: 0.75rem;
+  margin-top: 5px;
+}
+.nova-public .mobile-only {
+  display: none;
+}
+.nova-public .skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  background: #fff;
+  color: #111;
+  padding: 8px 15px;
+  transform: translateY(-150%);
+}
+.nova-public .skip-link:focus {
+  transform: translateY(0);
+}
+.nova-public .toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translate(-50%, 30px);
+  background: #f4f0fa;
+  color: #171021;
+  padding: 14px 24px;
+  z-index: 30;
+  max-width: calc(100% - 32px);
+  text-align: center;
+  font-size: 1rem;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.nova-public .toast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.nova-public /* Product and tickets */
+.product-main {
+  padding-top: 26px;
+  padding-bottom: 60px;
+}
+.nova-public .back-link {
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  color: #bbb1ce;
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.nova-public .back-link:hover {
+  color: #fff;
+}
+.nova-public .product-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 46px;
+  align-items: start;
+}
+.nova-public .product-detail {
+  min-width: 0;
+}
+.nova-public .detail-image {
+  position: relative;
+  border: 1px solid var(--line);
+  background: #090916;
+}
+.nova-public .detail-image img {
+  aspect-ratio: 3/2;
+  object-fit: contain;
+}
+.nova-public .detail-image .product-badge {
+  top: 16px;
+  left: 16px;
+}
+.nova-public .image-caption {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  color: #9b8bb7;
+  font-size: 0.75rem;
+}
+.nova-public .detail-info {
+  padding-top: 25px;
+}
+.nova-public .detail-info h1 {
+  font-size: 3.15rem;
+}
+.nova-public .detail-info > p:not(.eyebrow) {
+  color: #bcb4cc;
+  margin-top: 12px;
+}
+.nova-public .detail-stats {
+  display: flex;
+  gap: 22px;
+  margin-top: 24px;
+  padding-block: 19px;
+  border-block: 1px solid var(--line);
+}
+.nova-public .detail-stats > div {
+  flex: 1;
+  min-width: 0;
+}
+.nova-public .detail-stats span {
+  display: block;
+  font-size: 0.8125rem;
+  color: #9b91ad;
+  margin-bottom: 4px;
+}
+.nova-public .detail-stats strong {
+  font-size: 1.2rem;
+}
+.nova-public .detail-stats strong.price {
+  font-size: 1.85rem;
+  color: var(--red);
+  line-height: 1.2;
+}
+.nova-public .detail-stats small {
+  font-size: 0.8125rem;
+  color: #b9a8c8;
+}
+.nova-public .spec-title {
+  font-size: 1.2rem;
+  margin-top: 28px;
+  margin-bottom: 16px;
+}
+.nova-public .spec-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 24px;
+  padding-bottom: 25px;
+}
+.nova-public .spec-grid div {
+  border-left: 2px solid #463854;
+  padding-left: 12px;
+  min-width: 0;
+}
+.nova-public .spec-grid dt {
+  color: #91869f;
+  font-size: 0.8125rem;
+}
+.nova-public .spec-grid dd {
+  margin: 3px 0 0;
+  font-size: 1rem;
+}
+.nova-public .detail-bottom-note {
+  color: #9589a6;
+  font-size: 0.8125rem;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  line-height: 1.6;
+}
+.nova-public .detail-bottom-note a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.nova-public .detail-buy-link {
+  display: none;
+}
+.nova-public .ticket-panel {
+  padding: 27px;
+  border: 1px solid #433554;
+  background: linear-gradient(140deg, #1b122aa6, #0b0a14f2);
+}
+.nova-public .panel-heading {
+  border-bottom: 1px solid #3b3047;
+  padding-bottom: 23px;
+  margin-bottom: 23px;
+}
+.nova-public .panel-heading .eyebrow {
+  font-size: 0.8125rem;
+}
+.nova-public .panel-heading h2 {
+  font-size: 2.35rem;
+}
+.nova-public .panel-heading > p:last-child {
+  color: #a99db9;
+  font-size: 0.9375rem;
+  margin-top: 10px;
+}
+.nova-public .panel-heading #ticket-price {
+  font-size: 1.3rem;
+  color: white;
+  font-weight: 700;
+}
+.nova-public .dot-separator {
+  padding-inline: 5px;
+}
+.nova-public .lucky-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+.nova-public .lucky-heading h3 {
+  font-size: 1.15rem;
+}
+.nova-public .lucky-heading h3 > span {
+  color: var(--red);
+  margin-right: 4px;
+}
+.nova-public .text-button {
+  font-size: 0.875rem;
+  background: transparent;
+  color: #c2aecf;
+  min-height: 44px;
+  padding: 6px 0;
+  line-height: 1.25;
+  text-align: right;
+}
+.nova-public .text-button:hover:not(:disabled) {
+  color: #fff;
+}
+.nova-public .text-button > span {
+  font-size: 1.1rem;
+  margin-right: 4px;
+}
+.nova-public .help-text {
+  color: #a699b5;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.nova-public .lucky-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 16px;
+}
+.nova-public .ticket-number {
+  min-height: 48px;
+  color: white;
+  background: #141020;
+  border: 1px solid #4d395e;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  position: relative;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.nova-public .ticket-number:hover {
+  border-color: var(--red);
+}
+.nova-public .ticket-number.selected {
+  border-color: var(--red);
+  background: #ff293f;
+  box-shadow: 0 0 20px #ff294020;
+}
+.nova-public .ticket-number.selected:after {
+  content: '✓';
+  position: absolute;
+  right: 4px;
+  top: 2px;
+  font-size: 0.65rem;
+}
+.nova-public .ticket-divider {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  color: #8e7e9d;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  margin: 24px 0;
+}
+.nova-public .ticket-divider:before,
+.nova-public .ticket-divider:after {
+  content: '';
+  height: 1px;
+  background: #382b43;
+  flex: 1;
+}
+.nova-public .search-form label,
+.nova-public .quantity-form label {
+  display: block;
+  font-size: 1rem;
+  color: #e5dced;
+  margin-bottom: 8px;
+}
+.nova-public .input-row {
+  display: flex;
+  position: relative;
+  gap: 8px;
+}
+.nova-public .input-row > input {
+  flex: 1;
+  width: 100%;
+}
+.nova-public .input-icon {
+  position: absolute;
+  left: 14px;
+  top: 10px;
+  color: #8b759c;
+  font-size: 1.3rem;
+}
+.nova-public .search-form input {
+  padding-left: 35px;
+}
+.nova-public .search-feedback {
+  font-size: 0.875rem;
+  color: #c5b8d0;
+  margin-top: 9px;
+  line-height: 1.5;
+}
+.nova-public .search-feedback:empty {
+  display: none;
+}
+.nova-public .search-feedback.error,
+.nova-public .help-text.error {
+  color: #ff8a9a;
+}
+.nova-public .search-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  background: #0c0915;
+  border: 1px solid #42314f;
+  padding: 10px 12px;
+}
+.nova-public .search-result strong {
+  color: #fff;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+}
+.nova-public .search-result .text-button {
+  color: #ff7b8b;
+  font-weight: 700;
+  min-height: 35px;
+  padding: 4px 5px;
+}
+.nova-public .quantity-form {
+  margin-top: 22px;
+}
+.nova-public .quantity-form > .help-text {
+  margin-top: -4px;
+  margin-bottom: 10px;
+}
+.nova-public .quantity-row input {
+  padding-right: 70px;
+}
+.nova-public .input-unit {
+  position: absolute;
+  right: 116px;
+  top: 13px;
+  color: #85748f;
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+.nova-public .quantity-presets {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.nova-public .quantity-presets button {
+  flex: 1;
+  background: #21192b;
+  border: 1px solid #40304d;
+  color: #b5a3c1;
+  min-height: 38px;
+  font-size: 0.875rem;
+  padding: 6px 7px;
+}
+.nova-public .quantity-presets button:hover {
+  color: #fff;
+  border-color: #b6526e;
+}
+.nova-public .quantity-form #quantity-feedback {
+  margin-top: 9px;
+  margin-bottom: 0;
+}
+.nova-public .selection-summary {
+  border-top: 1px solid #3a2a44;
+  margin-top: 23px;
+  padding-top: 13px;
+}
+.nova-public .selection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+.nova-public .selection-heading h3 {
+  font-size: 1.1rem;
+}
+.nova-public .selection-heading h3 > span {
+  margin-left: 7px;
+  font-size: 0.875rem;
+  background: #ff293f26;
+  color: #ff8192;
+  padding: 3px 8px;
+}
+.nova-public .selected-tickets {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  max-height: 125px;
+  overflow-y: auto;
+  padding: 5px 2px 3px;
+  scrollbar-color: #664177 transparent;
+  scrollbar-width: thin;
+}
+.nova-public .empty-selection {
+  color: #9b8aa9;
+  font-size: 0.875rem;
+  padding-block: 10px;
+}
+.nova-public .selected-chip {
+  background: #22172e;
+  border: 1px solid #593a69;
+  color: #eee3f6;
+  font-size: 0.8125rem;
+  padding: 5px 8px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nova-public .selected-chip:hover {
+  border-color: var(--red);
+}
+.nova-public .selected-chip span {
+  color: #bb8fca;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.nova-public .panel-note {
+  color: #9985a9;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  margin-top: 16px;
+}
+.nova-public .desktop-checkout {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 21px;
+  border-top: 1px solid #3c2d48;
+  margin-top: 20px;
+}
+.nova-public .desktop-checkout > div > span {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.07em;
+  color: #a18ab2;
+}
+.nova-public .desktop-checkout strong,
+.nova-public .mobile-checkout strong {
+  display: block;
+  font-size: 2rem;
+  line-height: 1.25;
+  font-weight: 700;
+}
+.nova-public .desktop-checkout small,
+.nova-public .mobile-checkout small {
+  font-size: 0.875rem;
+  color: #a793b6;
+  font-weight: 400;
+}
+.nova-public .desktop-checkout .button {
+  min-width: 180px;
+}
+.nova-public .panel-demo {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 0.75rem;
+}
+.nova-public .mobile-checkout {
+  display: none;
+}
+.nova-public dialog {
+  color: var(--text);
+  background: linear-gradient(140deg, #251631, #0a0b15);
+  border: 1px solid #5d3e71;
+  max-width: 480px;
+  width: calc(100% - 32px);
+  padding: 28px;
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+}
+.nova-public dialog::backdrop {
+  background: #02020bc4;
+  backdrop-filter: blur(7px);
+}
+.nova-public .dialog-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 16px;
+}
+.nova-public .dialog-top .eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+}
+.nova-public .icon-button {
+  background: transparent;
+  color: #c6b1d4;
+  font-size: 2rem;
+  line-height: 1;
+  width: 44px;
+  height: 44px;
+}
+.nova-public .dialog-top + h2,
+.nova-public dialog h2 {
+  font-size: 2.25rem;
+}
+.nova-public dialog p {
+  color: #b6a6c7;
+  margin-top: 15px;
+}
+.nova-public .review-rows {
+  margin-top: 26px;
+  border-top: 1px solid #48314f;
+}
+.nova-public .review-rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 0;
+  border-bottom: 1px solid #48314f;
+  color: #c2b3d0;
+}
+.nova-public .review-rows strong {
+  color: white;
+}
+.nova-public .review-rows .review-total {
+  font-size: 1.6rem;
+}
+.nova-public .review-total strong {
+  color: #ff6379;
+}
+.nova-public .review-numbers {
+  margin-top: 20px;
+  font-size: 0.875rem;
+}
+.nova-public .review-numbers summary {
+  padding-block: 7px;
+  color: #dfcce9;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.nova-public .review-numbers p {
+  max-height: 120px;
+  overflow: auto;
+  font-size: 0.875rem;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+.nova-public dialog .button {
+  width: 100%;
+  margin-top: 22px;
+}
+.nova-public .success-symbol {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 20px;
+  border: 1px solid var(--red);
+  color: var(--red);
+  font-size: 2rem;
+}
+.nova-public .product-error {
+  padding: 60px 20px;
+  text-align: center;
+  grid-column: 1/-1;
+}
+.nova-public .product-error p {
+  margin-block: 20px;
+}
+.nova-public .product-error .button {
+  margin-top: 15px;
+}
+@media (min-width: 1600px) {
+  .site-header {
+    height: 110px;
+  }
+  .nova-public .catalog {
+    padding-top: 65px;
+  }
+  .nova-public .section-heading {
+    margin-bottom: 38px;
+  }
+  .nova-public .product-grid {
+    gap: 26px;
+  }
+  .nova-public .product-card- {
+    padding: 25px;
+  }
+}
+@media (max-width: 1100px) {
+  .section-wrap {
+    width: calc(100% - 64px);
+  }
+  .nova-public .site-header {
+    width: calc(100% - 64px);
+    gap: 26px;
+  }
+  .nova-public .side-word,
+  .nova-public .side-signal {
+    display: none;
+  }
+  .nova-public .product-grid {
+    gap: 15px;
+  }
+  .nova-public .product-card- {
+    padding: 18px;
+  }
+  .nova-public .product-card h2 {
+    font-size: 1.65rem;
+  }
+  .nova-public .product-card .button {
+    padding-inline: 16px;
+  }
+  .nova-public .raffle-meta {
+    gap: 8px;
+  }
+  .nova-public .raffle-price {
+    gap: 4px;
+  }
+  .nova-public .raffle-price strong {
+    font-size: 1.75rem;
+  }
+  .nova-public .cta-section {
+    padding: 50px 40px;
+  }
+  .nova-public .product-layout {
+    gap: 25px;
+  }
+  .nova-public .ticket-panel {
+    padding: 22px;
+  }
+  .nova-public .panel-heading h2 {
+    font-size: 2rem;
+  }
+  .nova-public .lucky-heading {
+    gap: 8px;
+  }
+  .nova-public .lucky-heading h3 {
+    font-size: 1.05rem;
+  }
+  .nova-public .lucky-heading .text-button {
+    font-size: 0.8125rem;
+  }
+  .nova-public .desktop-checkout .button {
+    min-width: 135px;
+    padding-inline: 18px;
+  }
+  .nova-public .detail-info h1 {
+    font-size: 2.8rem;
+  }
+  .nova-public .detail-stats {
+    gap: 12px;
+  }
+  .nova-public .detail-stats strong {
+    font-size: 1.05rem;
+  }
+  .nova-public .detail-stats strong.price {
+    font-size: 1.7rem;
+  }
+}
+@media (max-width: 800px) {
+  .section-wrap {
+    width: calc(100% - 40px);
+  }
+  .nova-public .site-header {
+    height: 83px;
+    width: calc(100% - 40px);
+    gap: 20px;
+  }
+  .nova-public .site-header nav {
+    gap: 20px;
+  }
+  .nova-public .site-header nav a {
+    font-size: 0.9375rem;
+  }
+  .nova-public .logo {
+    font-size: 1.3rem;
+  }
+  .nova-public .logo-mark {
+    font-size: 2.5rem;
+  }
+  .nova-public .section-index {
+    display: none;
+  }
+  .nova-public .catalog {
+    padding-top: 35px;
+  }
+  .nova-public .product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .nova-public .product-card:last-child {
+    grid-column: 1/-1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .nova-public .product-card:last-child .product-image-link {
+    display: flex;
+    align-items: center;
+  }
+  .nova-public .product-card:last-child img {
+    aspect-ratio: 1/1;
+    object-fit: contain;
+  }
+  .nova-public .product-card:last-child h2 {
+    min-height: 0;
+  }
+  .nova-public .cta-section {
+    padding: 40px 30px;
+  }
+  .nova-public .cta-section h2 {
+    font-size: 3.5rem;
+  }
+  .nova-public .cta-section .button {
+    min-width: 0;
+  }
+  .nova-public .steps article {
+    padding-right: 20px;
+  }
+  .nova-public .steps article + article {
+    padding-left: 20px;
+  }
+  .nova-public .steps h3 {
+    font-size: 1.35rem;
+  }
+  .nova-public .steps p {
+    font-size: 0.9375rem;
+  }
+  .nova-public .faq-section {
+    gap: 35px;
+    padding-block: 75px;
+  }
+  .nova-public .faq-heading h2 {
+    font-size: 2.75rem;
+  }
+  .nova-public .site-footer {
+    gap: 15px;
+  }
+  .nova-public .site-footer > span {
+    display: none;
+  }
+  .nova-public .product-layout {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .nova-public .product-detail {
+    display: grid;
+    grid-template-columns: 0.9fr 1fr;
+    gap: 22px;
+  }
+  .nova-public .detail-image {
+    align-self: start;
+  }
+  .nova-public .detail-image img {
+    aspect-ratio: 3/4;
+    object-fit: cover;
+  }
+  .nova-public .detail-info {
+    padding-top: 0;
+  }
+  .nova-public .detail-info h1 {
+    font-size: 2rem;
+  }
+  .nova-public .detail-info > p:not(.eyebrow) {
+    font-size: 0.9375rem;
+  }
+  .nova-public .detail-stats {
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .nova-public .spec-title {
+    margin-top: 20px;
+  }
+  .nova-public .spec-grid {
+    gap: 12px 15px;
+  }
+  .nova-public .spec-grid dd {
+    font-size: 0.875rem;
+  }
+  .nova-public .detail-bottom-note {
+    font-size: 0.75rem;
+  }
+  .nova-public .ticket-panel {
+    padding: 28px;
+  }
+  .nova-public .panel-heading h2 {
+    font-size: 2.6rem;
+  }
+  .nova-public .lucky-heading h3 {
+    font-size: 1.3rem;
+  }
+  .nova-public .lucky-heading .text-button {
+    font-size: 0.9375rem;
+  }
+  .nova-public .desktop-checkout {
+    display: none;
+  }
+  .nova-public .mobile-checkout {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: #100d1ded;
+    border-top: 1px solid #5b355b;
+    backdrop-filter: blur(14px);
+    padding: 14px 24px max(14px, env(safe-area-inset-bottom));
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .nova-public .mobile-checkout > div > span {
+    font-size: 0.8125rem;
+    color: #b6a5c7;
+  }
+  .nova-public .mobile-checkout .button {
+    min-width: 190px;
+  }
+  .nova-public .product-page {
+    padding-bottom: 110px;
+  }
+  .nova-public .product-page .toast {
+    bottom: 115px;
+  }
+  .nova-public .product-main {
+    padding-bottom: 40px;
+  }
+  .nova-public .detail-buy-link {
+    display: flex;
+    margin-top: 16px;
+    width: 100%;
+  }
+  .nova-public .panel-demo {
+    margin-top: 18px;
+  }
+}
+@media (max-width: 560px) {
+  html {
+    scroll-padding-top: 20px;
+  }
+  .nova-public {
+    font-size: 1rem;
+    background:
+      radial-gradient(ellipse at 90% 9%, #241a49b3, transparent 55%), #080812;
+  }
+  .nova-public .section-wrap {
+    width: calc(100% - 32px);
+  }
+  .nova-public .site-header {
+    height: 78px;
+    width: calc(100% - 32px);
+    gap: 12px;
+  }
+  .nova-public .logo {
+    gap: 7px;
+    font-size: 1.15rem;
+  }
+  .nova-public .logo-mark {
+    font-size: 2.3rem;
+  }
+  .nova-public .logo small {
+    font-size: 0.75rem;
+    letter-spacing: 0.5em;
+    margin-top: 6px;
+  }
+  .nova-public .site-header nav {
+    gap: 16px;
+  }
+  .nova-public .site-header nav a {
+    font-size: 0.875rem;
+  }
+  .nova-public .site-header nav a:nth-child(2) {
+    display: none;
+  }
+  .nova-public .demo-badge {
+    font-size: 0.75rem;
+    padding: 3px 6px;
+    letter-spacing: 0.07em;
+  }
+  .nova-public .catalog {
+    padding-top: 30px;
+    padding-bottom: 26px;
+  }
+  .nova-public .section-heading {
+    margin-bottom: 24px;
+    gap: 12px;
+  }
+  .nova-public .eyebrow {
+    font-size: 0.75rem;
+    margin-bottom: 12px;
+  }
+  .nova-public .catalog h1 {
+    font-size: 2.55rem;
+    line-height: 1.04;
+  }
+  .nova-public .mobile-only {
+    display: block;
+  }
+  .nova-public .product-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .nova-public .product-card:last-child {
+    display: block;
+    grid-column: auto;
+  }
+  .nova-public .product-card:last-child .product-image-link {
+    display: block;
+  }
+  .nova-public .product-card:last-child img {
+    aspect-ratio: 3/2;
+    object-fit: cover;
+  }
+  .nova-public .product-image-link img {
+    aspect-ratio: 3/2;
+  }
+  .nova-public .product-card- {
+    padding: 19px 20px 21px;
+  }
+  .nova-public .product-card h2 {
+    font-size: 2rem;
+    min-height: 0;
+  }
+  .nova-public .product-spec {
+    font-size: 1rem;
+    margin-top: 9px;
+  }
+  .nova-public .product-category {
+    font-size: 0.8125rem;
+    margin-bottom: 7px;
+  }
+  .nova-public .product-badge {
+    font-size: 0.75rem;
+    left: 13px;
+    top: 13px;
+  }
+  .nova-public .raffle-meta {
+    margin-top: 19px;
+    padding-top: 15px;
+  }
+  .nova-public .raffle-price strong {
+    font-size: 2.1rem;
+  }
+  .nova-public .raffle-price small {
+    font-size: 0.875rem;
+  }
+  .nova-public .raffle-date {
+    font-size: 0.875rem;
+  }
+  .nova-public .progress-info {
+    margin-top: 17px;
+    font-size: 0.8125rem;
+  }
+  .nova-public .product-card .button {
+    margin-top: 19px;
+    min-height: 51px;
+    font-size: 1rem;
+  }
+  .nova-public .catalog-note {
+    font-size: 0.875rem;
+    padding-inline: 12px;
+    line-height: 1.6;
+    margin-top: 23px;
+  }
+  .nova-public .cta-section {
+    margin-top: 24px;
+    grid-template-columns: 1fr;
+    padding: 34px 25px 30px;
+    gap: 10px;
+  }
+  .nova-public .cta-section h2 {
+    font-size: 3.5rem;
+  }
+  .nova-public .cta-section p:not(.eyebrow) {
+    font-size: 1rem;
+    margin-top: 18px;
+  }
+  .nova-public .cta-section .button {
+    margin-top: 23px;
+    width: 100%;
+  }
+  .nova-public .cta-art {
+    height: 170px;
+    min-height: 0;
+    margin-top: 18px;
+    align-items: flex-end;
+    padding-right: 24px;
+  }
+  .nova-public .outline-word {
+    font-size: 3.1rem;
+    top: 15px;
+    left: 8px;
+  }
+  .nova-public .big-number {
+    font-size: 8rem;
+  }
+  .nova-public .ticket-line {
+    font-size: 0.75rem;
+    margin-top: 6px;
+    padding-top: 8px;
+    letter-spacing: 0.1em;
+  }
+  .nova-public .how-section {
+    padding-top: 64px;
+  }
+  .nova-public .how-section h2 {
+    font-size: 2.6rem;
+    max-width: 300px;
+  }
+  .nova-public .how-section .section-heading {
+    margin-bottom: 20px;
+  }
+  .nova-public .section-intro {
+    font-size: 1rem;
+    margin-bottom: 25px;
+    line-height: 1.65;
+  }
+  .nova-public .steps {
+    grid-template-columns: 1fr;
+  }
+  .nova-public .steps article,
+  .nova-public .steps article + article {
+    border-left: 0;
+    padding: 27px 42px 27px 61px;
+    border-bottom: 1px solid var(--line);
+  }
+  .nova-public .steps article:last-child {
+    border-bottom: 0;
+  }
+  .nova-public .step-number {
+    left: 0;
+    right: auto;
+    top: 24px;
+    font-size: 2.5rem;
+    color: #706082;
+  }
+  .nova-public .step-icon {
+    display: none;
+  }
+  .nova-public .steps h3 {
+    font-size: 1.5rem;
+    margin-bottom: 9px;
+  }
+  .nova-public .steps p {
+    font-size: 1rem;
+  }
+  .nova-public .demo-note {
+    font-size: 0.8125rem;
+  }
+  .nova-public .faq-section {
+    grid-template-columns: 1fr;
+    padding-block: 66px 50px;
+    gap: 26px;
+  }
+  .nova-public .faq-heading h2 {
+    font-size: 2.75rem;
+  }
+  .nova-public .faq-heading h2 br {
+    display: none;
+  }
+  .nova-public .faq-heading > p:not(.eyebrow) {
+    margin-top: 16px;
+    font-size: 1rem;
+  }
+  .nova-public .faq-heading > p:not(.eyebrow) br {
+    display: none;
+  }
+  .nova-public .faq-list summary {
+    font-size: 1.125rem;
+    min-height: 72px;
+    padding-block: 18px;
+    gap: 16px;
+  }
+  .nova-public .faq-list details p {
+    font-size: 1rem;
+    padding-right: 15px;
+  }
+  .nova-public .site-footer {
+    padding-block: 25px 32px;
+    align-items: center;
+    gap: 15px;
+  }
+  .nova-public .site-footer > small {
+    max-width: 135px;
+    text-align: right;
+    font-size: 0.75rem;
+  }
+  .nova-public .product-main {
+    padding-top: 13px;
+  }
+  .nova-public .back-link {
+    margin-bottom: 12px;
+    min-height: 40px;
+  }
+  .nova-public .product-layout {
+    gap: 24px;
+  }
+  .nova-public .product-detail {
+    display: block;
+  }
+  .nova-public .detail-image img {
+    aspect-ratio: 3/2;
+    object-fit: contain;
+  }
+  .nova-public .detail-info {
+    padding-top: 23px;
+  }
+  .nova-public .detail-info h1 {
+    font-size: 2.55rem;
+  }
+  .nova-public .detail-info > p:not(.eyebrow) {
+    font-size: 1rem;
+  }
+  .nova-public .detail-stats {
+    margin-top: 22px;
+    gap: 15px;
+    padding-block: 16px;
+  }
+  .nova-public .detail-stats strong {
+    font-size: 1.125rem;
+  }
+  .nova-public .detail-stats strong.price {
+    font-size: 1.85rem;
+  }
+  .nova-public .detail-stats span {
+    font-size: 0.8125rem;
+  }
+  .nova-public .detail-stats small {
+    display: block;
+    margin-top: 4px;
+  }
+  .nova-public .spec-title {
+    font-size: 1.2rem;
+    margin-top: 22px;
+  }
+  .nova-public .spec-grid {
+    gap: 16px 15px;
+    padding-bottom: 20px;
+  }
+  .nova-public .spec-grid dt {
+    font-size: 0.8125rem;
+  }
+  .nova-public .spec-grid dd {
+    font-size: 1rem;
+  }
+  .nova-public .detail-bottom-note {
+    font-size: 0.8125rem;
+  }
+  .nova-public .detail-buy-link {
+    font-size: 1rem;
+    min-height: 50px;
+    margin-top: 20px;
+  }
+  .nova-public .ticket-panel {
+    padding: 22px 17px;
+  }
+  .nova-public .panel-heading {
+    padding-bottom: 20px;
+    margin-bottom: 15px;
+  }
+  .nova-public .panel-heading h2 {
+    font-size: 2.15rem;
+  }
+  .nova-public .panel-heading > p:last-child {
+    font-size: 0.875rem;
+  }
+  .nova-public .panel-heading .eyebrow {
+    font-size: 0.75rem;
+  }
+  .nova-public .lucky-heading {
+    gap: 12px;
+  }
+  .nova-public .lucky-heading h3 {
+    font-size: 1.0625rem;
+  }
+  .nova-public .lucky-heading .text-button {
+    font-size: 0.8125rem;
+    max-width: 95px;
+  }
+  .nova-public .lucky-grid {
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .nova-public .ticket-number {
+    min-height: 52px;
+    font-size: 1.125rem;
+  }
+  .nova-public .help-text {
+    font-size: 0.8755rem;
+  }
+  .nova-public .ticket-divider {
+    font-size: 0.75rem;
+    gap: 10px;
+    margin-block: 24px;
+  }
+  .nova-public .input-row {
+    gap: 7px;
+  }
+  .nova-public .small {
+    padding-inline: 15px;
+    font-size: 0.875rem;
+  }
+  .nova-public .input-unit {
+    right: 105px;
+  }
+  .nova-public .quantity-presets button {
+    min-height: 42px;
+  }
+  .nova-public .selected-tickets {
+    max-height: 130px;
+  }
+  .nova-public .selected-chip {
+    min-height: 36px;
+    font-size: 0.875rem;
+  }
+  .nova-public .panel-note {
+    font-size: 0.8125rem;
+  }
+  .nova-public .panel-demo {
+    font-size: 0.8125rem;
+  }
+  .nova-public .mobile-checkout {
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    gap: 15px;
+  }
+  .nova-public .mobile-checkout strong {
+    font-size: 1.75rem;
+  }
+  .nova-public .mobile-checkout .button {
+    font-size: 0.9375rem;
+    min-width: 0;
+    width: 48%;
+    min-height: 49px;
+    padding-inline: 17px;
+  }
+  .nova-public .product-page {
+    padding-bottom: 101px;
+  }
+  .nova-public .product-page .toast {
+    bottom: 106px;
+  }
+  .nova-public .product-main {
+    padding-bottom: 28px;
+  }
+  .nova-public dialog {
+    padding: 22px;
+    max-height: calc(100dvh - 30px);
+  }
+  .nova-public dialog h2 {
+    font-size: 2rem;
+  }
+  .nova-public .review-rows {
+    font-size: 0.9375rem;
+  }
+}
+@media (max-width: 360px) {
+  .logo {
+    font-size: 1rem;
+  }
+  .nova-public .site-header nav {
+    gap: 12px;
+  }
+  .nova-public .site-header nav a {
+    font-size: 0.8125rem;
+  }
+  .nova-public .catalog h1 {
+    font-size: 2.25rem;
+  }
+  .nova-public .panel-heading h2 {
+    font-size: 1.95rem;
+  }
+  .nova-public .lucky-heading h3 {
+    font-size: 0.975rem;
+  }
+  .nova-public .small {
+    padding-inline: 12px;
+  }
+  .nova-public .input-unit {
+    right: 94px;
+  }
+  .nova-public .ticket-panel {
+    padding: 20px 13px;
+  }
+  .nova-public .ticket-number {
+    font-size: 1rem;
+  }
+  .nova-public .detail-stats {
+    gap: 10px;
+  }
+  .nova-public .detail-stats strong {
+    font-size: 1rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .nova-public *,
+  .nova-public *:before,
+  .nova-public *:after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

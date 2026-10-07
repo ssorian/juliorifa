@@ -1,0 +1,199 @@
+.nova-admin {
+  --bg: #0a0b14;
+  --surface: #11121f;
+  --surface2: #171826;
+  --text: #f0eff6;
+  --muted: #9798af;
+  --line: #292a3d;
+  --red: #ff334b;
+  --purple: #9e83ff;
+  --green: #60d7b2;
+  --amber: #f0bb66;
+  --sidebar: 238px;
+  background:
+    radial-gradient(ellipse at 85% 0, #21173370, transparent 42%), var(--bg);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+body:has(.nova-admin dialog[open]) {
+  overflow: hidden;
+}
+.nova-admin .sidebar nav button {
+  display: flex;
+  gap: 14px;
+  padding: 13px 14px;
+  text-align: left;
+  color: #a4a3b9;
+  background: transparent;
+  border-radius: 5px;
+}
+.nova-admin .sidebar nav button.active {
+  color: white;
+  background: #ff334b1a;
+  border: 1px solid #5b283e;
+}
+.nova-admin .toolbar > input {
+  max-width: 400px;
+}
+.nova-admin .react-dialog {
+  padding: 25px;
+  max-width: 760px;
+}
+.nova-admin .react-dialog.raffle-editor {
+  max-width: 1100px;
+}
+.nova-admin .dialog-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.nova-admin .editor-preview {
+  padding: 24px;
+  background: #191323;
+  border: 1px solid var(--line);
+  align-self: start;
+}
+.nova-admin .editor-preview img {
+  width: 100%;
+  aspect-ratio: 3/2;
+  object-fit: contain;
+  margin-bottom: 20px;
+}
+.nova-admin .editor-preview p {
+  overflow-wrap: anywhere;
+}
+.nova-admin .react-dialog form h3 {
+  margin-top: 24px;
+}
+.nova-admin .breakdown {
+  display: block;
+  color: var(--muted);
+}
+.nova-admin .row-actions {
+  flex-wrap: wrap;
+}
+.nova-admin .input-row {
+  display: flex;
+  gap: 10px;
+}
+.nova-admin .save-notice {
+  margin: 12px 0;
+  color: var(--muted);
+}
+.nova-admin .spec-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.nova-admin .spec-grid dd {
+  margin: 0;
+}
+.nova-admin .purchase-numbers {
+  overflow-wrap: anywhere;
+}
+.nova-admin .react-dialog label {
+  display: block;
+  margin-top: 12px;
+}
+.nova-admin .react-dialog p,
+.nova-admin .react-dialog details {
+  margin: 16px 0;
+}
+.nova-admin .react-dialog .button {
+  margin-top: 16px;
+}
+.nova-admin .chart-area svg {
+  width: 100%;
+}
+.nova-admin .section-note {
+  margin-bottom: 20px;
+}
+.nova-admin .react-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.nova-admin .react-dialog::backdrop {
+  background: #000b;
+}
+.nova-admin .panel {
+  overflow-x: auto;
+}
+.nova-admin .panel label {
+  display: block;
+  margin: 12px 0;
+}
+.nova-admin .panel textarea {
+  width: 100%;
+  min-height: 70px;
+}
+.nova-admin .panel fieldset {
+  border: 0;
+  padding: 0;
+}
+.nova-admin .panel dd {
+  overflow-wrap: anywhere;
+}
+.nova-admin .ticket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 18px 0;
+}
+.nova-admin .topbar-right {
+  flex-wrap: wrap;
+}
+.nova-admin [role='alert'] {
+  color: var(--amber);
+}
+.nova-admin button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.nova-admin table small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 800px) {
+  .nova-admin .sidebar {
+    position: static;
+    width: 100%;
+    padding: 20px;
+  }
+  .nova-admin .sidebar nav {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .nova-admin .sidebar-note,
+  .nova-admin .admin-user,
+  .nova-admin .workspace-label {
+    display: none;
+  }
+  .nova-admin .store-link {
+    margin-top: 12px;
+  }
+  .nova-admin .admin-workspace {
+    margin-left: 0;
+  }
+  .nova-admin #admin-main {
+    padding: 24px 16px;
+  }
+  .nova-admin .metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .nova-admin .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .nova-admin .topbar {
+    padding: 16px;
+  }
+  .nova-admin .page-heading {
+    flex-wrap: wrap;
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791342099657,
+      "tag": "0000_bitter_cassandra_nova",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791344969952,
+      "tag": "0001_thankful_wong",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791346367418,
+      "tag": "0002_big_the_fallen",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791348719900,
+      "tag": "0003_absurd_captain_universe",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791350673643,
+      "tag": "0004_romantic_bishop",
+      "breakpoints": true
+    }
+  ]
+}

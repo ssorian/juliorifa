@@ -1,0 +1,107 @@
+.nova-public {
+  min-height: 100vh;
+  color: #f6f5fa;
+  background:
+    radial-gradient(ellipse at 49% 25%, #2014439c, transparent 58%), #080812;
+  font-family: Condensed, Arial, sans-serif;
+  --red: #ff293f;
+  --line: #2a293c;
+  --muted: #aaaab9;
+  --heading: Condensed, Arial, sans-serif;
+  --body: Condensed, Arial, sans-serif;
+}
+.nova-public .product-image-link {
+  width: 100%;
+  padding: 0;
+}
+.nova-public .selected-react {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  max-height: 180px;
+  overflow: auto;
+}
+.nova-public .selected-react button {
+  background: #291b36;
+  color: white;
+  padding: 6px;
+}
+.nova-public .react-dialog {
+  background: linear-gradient(140deg, #251631, #0a0b15);
+  color: white;
+  padding: 28px;
+  border: 1px solid #55405f;
+  max-width: 600px;
+  width: calc(100% - 32px);
+}
+.nova-public .react-dialog::backdrop {
+  background: #05060dcc;
+}
+.nova-public .react-dialog p {
+  margin: 20px 0;
+}
+.nova-public .checkout-summary {
+  margin-top: 26px;
+  border-top: 1px solid #48314f;
+}
+.nova-public .checkout-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 0;
+  border-bottom: 1px solid #48314f;
+}
+.nova-public .checkout-summary dd {
+  margin: 0;
+  font-weight: 700;
+}
+.nova-public .react-dialog details p {
+  max-height: 120px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+body:has(.nova-public dialog[open]) {
+  overflow: hidden;
+}
+.nova-public .search-form {
+  margin-top: 24px;
+}
+.nova-public .site-header nav {
+  flex-wrap: wrap;
+}
+@media (max-width: 700px) {
+  .nova-public .site-header {
+    height: auto;
+    padding: 20px 0;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .nova-public .site-header nav {
+    margin-left: 0;
+    gap: 16px;
+  }
+  .nova-public .section-wrap {
+    width: calc(100% - 32px);
+  }
+  .nova-public .product-grid,
+  .nova-public .product-layout,
+  .nova-public .steps,
+  .nova-public .faq-section,
+  .nova-public .cta-section {
+    grid-template-columns: 1fr;
+  }
+  .nova-public .section-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+  .nova-public .cta-section {
+    padding: 30px;
+  }
+  .nova-public .steps article + article {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .nova-public .site-footer {
+    flex-wrap: wrap;
+  }
+}

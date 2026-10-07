@@ -1,0 +1,37 @@
+@import '../raffles/design.css';
+@import '../raffles/react.css';
+.purchases-page .purchase-list {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.purchases-page article,
+.purchases-page .purchase-detail {
+  border: 1px solid #444;
+  padding: 1.5rem;
+  overflow-wrap: anywhere;
+}
+.purchases-page main {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+.purchases-page .payment-snapshot {
+  border: 1px solid #555;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+.purchases-page dt {
+  font-weight: bold;
+}
+.purchases-page dd {
+  margin: 0 0 1rem;
+  white-space: pre-wrap;
+}
+.purchases-page .proof-upload {
+  display: block;
+  margin: 1rem 0;
+}
+.purchases-page button,
+.purchases-page .purchase-detail > a {
+  margin: 0.5rem;
+}
