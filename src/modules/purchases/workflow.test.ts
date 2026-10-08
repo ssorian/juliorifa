@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   cancelWithRepository,
+  adminCancelWithRepository,
   finalizeWithRepository,
   reviewWithRepository,
   snapshotInstructions,
@@ -45,9 +46,6 @@ function fixture(
         async verifyProof() {
           next.proofVerified = true
         },
-        async notify(event) {
-          if (!nextEvents.includes(event)) nextEvents.push(event)
-        },
       })
       order = next
       held = nextHeld
@@ -57,6 +55,56 @@ function fixture(
   }
   return { repo, read: () => ({ order, held, events }) }
 }
+test('admin cancels pending reservations without proof, preserving audit and idempotency', async () => {
+  const f = fixture()
+  assert.throws(
+    () => adminCancelWithRepository(f.repo, 'client', 'Cancel request', 99),
+    /FORBIDDEN/,
+  )
+  assert.throws(
+    () => adminCancelWithRepository(f.repo, 'admin', '', 99),
+    /REASON_REQUIRED/,
+  )
+  assert.equal(
+    (await adminCancelWithRepository(f.repo, 'admin', 'Cancel request', 99))
+      .status,
+    'cancelled',
+  )
+  await adminCancelWithRepository(f.repo, 'admin', 'Cancel request', 99)
+  assert.equal(f.read().held, false)
+  assert.deepEqual(f.read().events, ['Cancel request'])
+  await assert.rejects(
+    adminCancelWithRepository(
+      fixture('paid').repo,
+      'admin',
+      'Cancel request',
+      99,
+    ),
+    /CANNOT_CANCEL/,
+  )
+  await assert.rejects(
+    adminCancelWithRepository(
+      fixture('reviewing').repo,
+      'admin',
+      'Cancel request',
+      99,
+    ),
+    /CANNOT_CANCEL/,
+  )
+  const expired = fixture()
+  assert.equal(
+    (
+      await adminCancelWithRepository(
+        expired.repo,
+        'admin',
+        'Expired cancellation',
+        100,
+      )
+    ).status,
+    'expired',
+  )
+  assert.equal(expired.read().held, false)
+})
 test('cancel expired commits release instead of throwing and rolling back expiry', async () => {
   const f = fixture()
   assert.deepEqual(await cancelWithRepository(f.repo, 'u', 100), {
@@ -86,7 +134,7 @@ test('timely verified receipt reviewing has no expiry and owner only', async () 
   )
   assert.equal(f.read().held, true)
 })
-test('approve requires verified backend receipt; duplicate approval does not notify twice', async () => {
+test('approve requires verified backend receipt; duplicate approval keeps audit without notifications', async () => {
   const bad = fixture('reviewing')
   await assert.rejects(
     reviewWithRepository(bad.repo, 'admin', 'paid', 'approved', 99),
@@ -97,7 +145,7 @@ test('approve requires verified backend receipt; duplicate approval does not not
   await reviewWithRepository(f.repo, 'admin', 'paid', 'approved', 1000)
   assert.equal(
     f.read().events.filter((e) => e === 'purchase.approved').length,
-    1,
+    0,
   )
 })
 test('reject reviewing releases only occupancy, reason required, non-admin denied', async () => {
@@ -118,7 +166,7 @@ test('reject reviewing releases only occupancy, reason required, non-admin denie
   )
   assert.equal(f.read().held, false)
   assert.equal(f.read().order.status, 'rejected')
-  assert.ok(f.read().events.includes('purchase.rejected'))
+  assert.ok(!f.read().events.includes('purchase.rejected'))
 })
 test('instructions snapshot is independent of later settings edits', () => {
   const settings = {
@@ -129,6 +177,6 @@ test('instructions snapshot is independent of later settings edits', () => {
   }
   const snapshot = snapshotInstructions(settings)
   settings.account = '456'
-  assert.equal(snapshot.account, '123')
-  assert.throws(() => snapshotInstructions(null))
+  assert.equal(snapshot!.account, '123')
+  assert.equal(snapshotInstructions(null), null)
 })

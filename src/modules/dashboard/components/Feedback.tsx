@@ -41,13 +41,15 @@ export function Pager({
 }) {
   return (
     <div className="panel-footer">
-      <button disabled={!page} onClick={() => setPage(page - 1)}>
-        Anterior
-      </button>
-      <span>Página {page + 1}</span>
-      <button disabled={!hasNext} onClick={() => setPage(page + 1)}>
-        Siguiente
-      </button>
+      <div className="pagination">
+        <button disabled={!page} onClick={() => setPage(page - 1)}>
+          Anterior
+        </button>
+        <span>Página {page + 1}</span>
+        <button disabled={!hasNext} onClick={() => setPage(page + 1)}>
+          Siguiente
+        </button>
+      </div>
     </div>
   )
 }

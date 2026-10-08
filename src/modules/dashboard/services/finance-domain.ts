@@ -11,6 +11,7 @@ interface Order {
   subtotalCents: number
   feeCents: number
   ticketCount: number
+  expiresAt?: Date
   reviewedAt: Date | null
 }
 const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -48,6 +49,9 @@ export function computeFinance(
       tickets: 0,
     }
   })
+  let pendingCents = 0,
+    pendingOrders = 0,
+    pendingTickets = 0
   let paidCents = 0,
     reviewingCents = 0,
     feeExpenseCents = 0,
@@ -63,8 +67,17 @@ export function computeFinance(
   for (const order of orders.filter(
     (o) => !raffleId || o.raffleId === raffleId,
   )) {
-    if (order.status === 'reviewing') {
-      reviewingCents = sum(reviewingCents, order.subtotalCents)
+    if (
+      order.status === 'reviewing' ||
+      (order.status === 'awaiting_proof' &&
+        order.expiresAt &&
+        order.expiresAt.getTime() > now)
+    ) {
+      pendingCents = sum(pendingCents, order.subtotalCents)
+      pendingOrders++
+      pendingTickets = sum(pendingTickets, order.ticketCount)
+      if (order.status === 'reviewing')
+        reviewingCents = sum(reviewingCents, order.subtotalCents)
       continue
     }
     if (order.status !== 'paid') continue
@@ -86,6 +99,9 @@ export function computeFinance(
     }
   }
   return {
+    pendingCents,
+    pendingOrders,
+    pendingTickets,
     paidCents,
     reviewingCents,
     feeExpenseCents,

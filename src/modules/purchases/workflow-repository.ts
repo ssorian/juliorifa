@@ -2,9 +2,8 @@ import '@tanstack/react-start/server-only'
 import { randomUUID } from 'node:crypto'
 import { and, eq, gt } from 'drizzle-orm'
 import type { db } from '../../db'
-import { mediaAssets,uploadLeases } from '../../lib/storage/db'
+import { mediaAssets, uploadLeases } from '../../lib/storage/db'
 import { raffles } from '../raffles/db/schema'
-import { notificationOutbox } from '../notifications/db/schema'
 import { purchases, occupancy, orderTickets, purchaseEvents } from './db/schema'
 import { DomainError } from './domain'
 import type { WorkflowRepository, WorkflowOrder } from './workflow'
@@ -25,7 +24,6 @@ export function createWorkflowRepository(
     transaction: (operation) =>
       database.transaction(async (tx) => {
         let locked: WorkflowOrder | null = null
-        let lastReason = ''
         let now = new Date(context.now)
         async function audit(type: string, reason?: string) {
           await tx.insert(purchaseEvents).values({
@@ -110,9 +108,21 @@ export function createWorkflowRepository(
             }
           },
           async verifyProof() {
-            if(context.uploadToken) {
-              const leases=await tx.select().from(uploadLeases).where(and(eq(uploadLeases.kind,'proof'),eq(uploadLeases.targetId,context.orderId),eq(uploadLeases.ownerId,context.actorId),eq(uploadLeases.token,context.uploadToken),gt(uploadLeases.expiresAt,now))).for('update')
-              if(!leases.at(0)) throw new DomainError('UPLOAD_LEASE_LOST')
+            if (context.uploadToken) {
+              const leases = await tx
+                .select()
+                .from(uploadLeases)
+                .where(
+                  and(
+                    eq(uploadLeases.kind, 'proof'),
+                    eq(uploadLeases.targetId, context.orderId),
+                    eq(uploadLeases.ownerId, context.actorId),
+                    eq(uploadLeases.token, context.uploadToken),
+                    gt(uploadLeases.expiresAt, now),
+                  ),
+                )
+                .for('update')
+              if (!leases.at(0)) throw new DomainError('UPLOAD_LEASE_LOST')
             }
             if (!locked || !context.assetId)
               throw new DomainError('VERIFIED_PROOF_REQUIRED')
@@ -188,27 +198,6 @@ export function createWorkflowRepository(
                 .where(eq(occupancy.orderId, locked.id))
             await audit(status === 'paid' ? 'approved' : status, reason)
             locked.status = status
-            lastReason = reason
-          },
-          async notify(event) {
-            if (!locked) throw new DomainError('NOT_FOUND')
-            await tx
-              .insert(notificationOutbox)
-              .values({
-                id: randomUUID(),
-                event,
-                key: locked.id,
-                payload: {
-                  orderId: locked.id,
-                  userId: locked.userId,
-                  reason: lastReason,
-                },
-                availableAt: now,
-                createdAt: now,
-              })
-              .onConflictDoNothing({
-                target: [notificationOutbox.event, notificationOutbox.key],
-              })
           },
         })
       }),

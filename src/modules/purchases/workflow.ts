@@ -14,7 +14,6 @@ export interface WorkflowTransaction {
   expire: (now: number) => Promise<void>
   transition: (status: PurchaseStatus, reason: string) => Promise<void>
   verifyProof: () => Promise<void>
-  notify: (event: 'purchase.approved' | 'purchase.rejected') => Promise<void>
 }
 export interface WorkflowRepository {
   transaction: <T>(
@@ -25,9 +24,8 @@ type Clock = number | (() => number)
 const time = (clock: Clock) => (typeof clock === 'function' ? clock() : clock)
 export function snapshotInstructions(
   settings: PaymentInstructions | null,
-): PaymentInstructions {
-  if (!settings || Object.values(settings).some((v) => !v.trim()))
-    throw new DomainError('PAYMENT_NOT_CONFIGURED')
+): PaymentInstructions | null {
+  if (!settings || Object.values(settings).some((v) => !v.trim())) return null
   return { ...settings }
 }
 export function cancelWithRepository(
@@ -45,6 +43,26 @@ export function cancelWithRepository(
     if (order.status !== 'awaiting_proof')
       throw new DomainError('CANNOT_CANCEL')
     await tx.transition('cancelled', 'cancelled')
+    return { status: 'cancelled' as const }
+  })
+}
+export function adminCancelWithRepository(
+  repo: WorkflowRepository,
+  role: string,
+  reason: string,
+  clock: Clock,
+) {
+  if (role !== 'admin') throw new DomainError('FORBIDDEN')
+  if (!reason.trim() || reason.length > 2000)
+    throw new DomainError('REASON_REQUIRED')
+  return repo.transaction(async (tx) => {
+    const order = await tx.lock()
+    await tx.expire(time(clock))
+    if (order.status === 'expired' || order.status === 'cancelled')
+      return { status: order.status }
+    if (order.status !== 'awaiting_proof')
+      throw new DomainError('CANNOT_CANCEL')
+    await tx.transition('cancelled', reason.trim())
     return { status: 'cancelled' as const }
   })
 }
@@ -87,9 +105,6 @@ export function reviewWithRepository(
     if (order.status !== 'reviewing' || !order.proofVerified)
       throw new DomainError('VERIFIED_PROOF_REQUIRED')
     await tx.transition(target, reason.trim())
-    await tx.notify(
-      target === 'paid' ? 'purchase.approved' : 'purchase.rejected',
-    )
     return { status: target }
   })
 }

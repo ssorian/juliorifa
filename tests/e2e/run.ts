@@ -263,7 +263,7 @@ try {
     base + '/api/purchases/payment-settings',
     { headers: { Origin: base }, data: bank },
   )
-  assert.equal(settings.status(), 200, 'admin settings status')
+  assert.equal(settings.status(), 410, 'retired bank configuration endpoint')
   const fields = {
     title: 'HTTP fixture prize',
     description: 'Isolated fixture',
@@ -489,6 +489,36 @@ try {
       headers: { Origin: base },
       data: { reason: 'Fixture verified' },
     })
+  await page.goto(base + '/dashboard#compras')
+  await page
+    .getByRole('button', { name: `Ver compra ${secondary.id}`, exact: true })
+    .click()
+  const pdfDialog = page.getByRole('dialog', {
+    name: 'Detalle de compra',
+    exact: true,
+  })
+  await pdfDialog.getByLabel('Comprobante PDF').waitFor()
+  assert.match(
+    await pdfDialog.getByLabel('Comprobante PDF').getAttribute('data'),
+    /^blob:/,
+  )
+  await pdfDialog
+    .getByLabel('Motivo obligatorio')
+    .fill('Fixture rejected through purchase dialog')
+  page.once('dialog', (dialog: any) => dialog.accept())
+  await pdfDialog
+    .getByRole('button', {
+      name: 'Cancelar compra y liberar boletos',
+      exact: true,
+    })
+    .click()
+  await pdfDialog
+    .getByText('Compra cancelada y boletos liberados. Historia conservada.', {
+      exact: true,
+    })
+    .waitFor()
+  await pdfDialog.getByRole('button', { name: 'Cerrar compra' }).click()
+  console.log('PASS private PDF preview and rejection from Compras dialog')
   const reject = await context.request.post(
     `${base}/api/purchases/${secondary.id}/reject`,
     { headers: { Origin: base }, data: { reason: 'Fixture rejected payment' } },
@@ -507,7 +537,42 @@ try {
   console.log(
     'PASS actual PDF proof, strict caller money/actor rejection, client review denial and admin rejection releases ticket',
   )
+  await page.goto(base + '/dashboard#compras')
+  await page
+    .getByRole('button', { name: `Ver compra ${original.id}`, exact: true })
+    .click()
+  const purchaseDialog = page.getByRole('dialog', {
+    name: 'Detalle de compra',
+    exact: true,
+  })
+  const proofImage = purchaseDialog.getByAltText(
+    'Comprobante de transferencia subido por el comprador',
+  )
+  await proofImage.waitFor()
+  assert.ok(
+    await proofImage.evaluate(
+      (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
+    ),
+  )
+  await page.screenshot({
+    path: '/tmp/juliorifa-admin-comprobante.png',
+    fullPage: true,
+  })
+  await purchaseDialog
+    .getByLabel('Motivo obligatorio')
+    .fill('Fixture verified through purchase dialog')
+  page.once('dialog', (dialog: any) => dialog.accept())
+  await purchaseDialog
+    .getByRole('button', { name: 'Confirmar pago', exact: true })
+    .click()
+  await purchaseDialog
+    .getByText('Pago confirmado en servidor.', { exact: true })
+    .waitFor()
+  await purchaseDialog.getByRole('button', { name: 'Cerrar compra' }).click()
   assert.equal((await approve()).status(), 200)
+  console.log(
+    'PASS actual private PNG preview and paid transition from Compras dialog',
+  )
   const paidCounts = await (await helper('counts')).json()
   await approve()
   assert.equal(
@@ -541,7 +606,7 @@ try {
   assert.equal(drawn.candidateCount, 1)
   assert.equal(
     (await (await helper('counts')).json()).outbox,
-    beforeDraw.outbox + 1,
+    beforeDraw.outbox,
   )
   const adminDraw = await rpc(raffleModule, 'adminDraw', { id: raffle.id })
   assert.equal(adminDraw.randomIndex, 0)
@@ -552,29 +617,27 @@ try {
   stage = 'actual outbox rejects unverified recipient claims'
   const delivery = await (await helper('pump', 'POST')).json()
   assert.equal(delivery.sent, 0)
-  assert.equal(delivery.retry, 3)
+  assert.equal(delivery.retry, 0)
   assert.equal((await (await helper('counts')).json()).messages, 0)
-  console.log(
-    'PASS actual outbox retains audited events, retries three unverified recipients, zero mail',
-  )
+  console.log('PASS notifications retired: zero new events or email delivery')
   stage = 'dashboard navigation and 14-day chart'
   await page.goto(base + '/dashboard')
   await page.waitForLoadState('networkidle')
-  for (const tab of [
-    'Resumen',
-    'Rifas',
-    'Compras',
-    'Ingresos',
-    'Configuración',
-    'Notificaciones',
-  ]) {
+  for (const tab of ['Resumen', 'Rifas', 'Compras', 'Ingresos']) {
     await page.locator('.sidebar nav').getByRole('link', { name: tab }).click()
     await page.waitForLoadState('networkidle')
     assert.equal(
       await page.locator('.sidebar nav [aria-current="page"]').count(),
       1,
     )
-    if (tab === 'Ingresos') {
+    if (tab === 'Rifas' || tab === 'Compras')
+      await page.locator('tbody tr').first().waitFor()
+    else await page.locator('.metric-grid').waitFor()
+    await page.screenshot({
+      path: `/tmp/juliorifa-admin-${tab.toLowerCase()}.png`,
+      fullPage: true,
+    })
+    if (tab === 'Resumen') {
       await page.locator('.sales-chart circle').first().waitFor()
       assert.equal(await page.locator('.sales-chart circle title').count(), 14)
       assert.ok(
@@ -591,7 +654,7 @@ try {
     }
   }
   console.log(
-    'PASS six actual dashboard sections and 14 single-text chart titles',
+    'PASS four original dashboard sections and 14 single-text chart titles',
   )
   stage = 'actual RaffleEditor create draft'
   await page
@@ -684,7 +747,7 @@ try {
   await uiRow.waitFor()
   assert.ok((await uiRow.innerText()).includes('Activa'))
   await uiRow
-    .getByRole('button', { name: 'Editar / archivar', exact: true })
+    .getByRole('button', { name: `Editar ${uiTitle}`, exact: true })
     .click()
   stage = 'actual RaffleEditor edit title features costs dates'
   const editedTitle = 'Edited editor pipeline fixture'
@@ -910,8 +973,53 @@ try {
   assert.equal(cartOrder.raffleId, uiId)
   assert.equal(cartOrder.totalCents, 7525)
   assert.deepEqual(cartOrder.tickets, [0])
-  assert.equal(cartOrder.paymentInstructions.bank, 'Changed Fixture Bank')
+  assert.equal(cartOrder.paymentInstructions.bank, bank.bank)
+  await assert.rejects(
+    rpc(
+      purchaseModule,
+      'cancelAdminReservation',
+      { id: cartOrder.id, reason: 'Unauthorized client cancellation' },
+      cartPage,
+    ),
+  )
   await cartContext.close()
+  await page.goto(base + '/dashboard#compras')
+  await page
+    .getByRole('button', { name: `Ver compra ${cartOrder.id}`, exact: true })
+    .click()
+  const pendingDialog = page.getByRole('dialog', {
+    name: 'Detalle de compra',
+    exact: true,
+  })
+  await pendingDialog
+    .getByLabel('Motivo obligatorio')
+    .fill('Fixture administrator cancels pending reservation')
+  page.once('dialog', (dialog: any) => dialog.accept())
+  await pendingDialog
+    .getByRole('button', {
+      name: 'Cancelar reserva y liberar boletos',
+      exact: true,
+    })
+    .click()
+  await pendingDialog
+    .getByText('Reserva cancelada o vencida; boletos liberados.', {
+      exact: true,
+    })
+    .waitFor()
+  const cancelledOrder = await rpc(purchaseModule, 'adminPurchase', {
+    id: cartOrder.id,
+  })
+  assert.equal(cancelledOrder.status, 'cancelled')
+  const released = await rpc(raffleModule, 'adminInventory', {
+    id: uiId,
+    from: 0,
+    limit: 1,
+  })
+  assert.equal(released.tickets[0].state, 'available')
+  await pendingDialog.getByRole('button', { name: 'Cerrar compra' }).click()
+  console.log(
+    'PASS client admin-cancel denied, real pending reservation cancelled from Compras and tickets released',
+  )
   console.log(
     'PASS A new anonymous same-cart login UI, native password callback, restored intent/selection, zero auto POST and one explicit original reservation',
   )
@@ -987,6 +1095,13 @@ try {
     for (const path of ['/', '/dashboard', '/mis-compras']) {
       await page.goto(base + path)
       await page.waitForLoadState('networkidle')
+      if (path === '/dashboard' && width === 390) {
+        await page.locator('.metric-grid').waitFor()
+        await page.screenshot({
+          path: '/tmp/juliorifa-admin-mobile.png',
+          fullPage: true,
+        })
+      }
       assert.ok(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth + 1,

@@ -1,7 +1,6 @@
 import '@tanstack/react-start/server-only'
 import { pathToFileURL } from 'node:url'
-import { jobsInput } from '../src/modules/notifications/schemas'
-import { requireJobsEnabled } from '../src/config/jobs'
+import { jobsInput, requireJobsEnabled } from '../src/config/jobs'
 import { DomainError } from '../src/modules/purchases/domain'
 
 export function parseJobArguments(args: string[]) {
@@ -11,7 +10,7 @@ export function parseJobArguments(args: string[]) {
     help = false
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
-    if (['--expire', '--outbox', '--storage', '--all'].includes(arg)) {
+    if (['--expire', '--storage', '--all'].includes(arg)) {
       if (kind) throw new DomainError('INVALID_JOB_ARGUMENTS')
       kind = arg.slice(2)
     } else if (arg === '--batch') {
@@ -47,14 +46,14 @@ async function main() {
     const options = parseJobArguments(process.argv.slice(2))
     if (options.help) {
       console.log(
-        'run-jobs.ts --expire|--outbox|--storage|--all --batch 1..25 --confirm-jobs (alias --execute; JOBS_ENABLED=true required)',
+        'run-jobs.ts --expire|--storage|--all --batch 1..25 --confirm-jobs (alias --execute; JOBS_ENABLED=true required)',
       )
       return
     }
     const result = await executeConfirmedJobs(
       process.argv.slice(2),
       async () => {
-        const { runJobs } = await import('../src/modules/notifications/jobs')
+        const { runJobs } = await import('../src/config/jobs')
         const { db } = await import('../src/db')
         return async (input) => {
           try {

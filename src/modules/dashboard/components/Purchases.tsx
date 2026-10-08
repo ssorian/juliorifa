@@ -3,6 +3,7 @@ import {
   adminPurchases,
   adminPurchase,
   purchaseAudit,
+  cancelAdminReservation,
 } from '../../purchases/server'
 import { useAdminQuery, useAdminAction } from '../hooks/useAdmin'
 import { canReview, labels } from '../lib/admin'
@@ -11,6 +12,9 @@ import { Feedback, Pager, ActionFeedback } from './Feedback'
 import { RaffleFilter } from './RaffleFilter'
 import { AdminDialog } from './AdminDialog'
 import { PurchaseFacts } from './PurchaseFacts'
+import { PurchaseRows, StatusPill, initials } from './PurchaseRows'
+import { AdminIcon } from './AdminIcon'
+import { ProofPreview } from './ProofPreview'
 
 export function OrdersTable() {
   const [page, setPage] = useState(0),
@@ -24,8 +28,8 @@ export function OrdersTable() {
     () =>
       adminPurchases({
         data: {
-          offset: page * 20,
-          limit: 20,
+          offset: page * 8,
+          limit: 8,
           search,
           status: status as 'all',
           raffleId: raffleId || undefined,
@@ -35,15 +39,18 @@ export function OrdersTable() {
   return (
     <>
       <div className="toolbar">
-        <input
-          aria-label="Buscar compra"
-          placeholder="Nombre, correo o UUID"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setPage(0)
-          }}
-        />
+        <div className="search-control">
+          <AdminIcon name="search" />
+          <input
+            aria-label="Buscar compra"
+            placeholder="Nombre, correo o folio"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(0)
+            }}
+          />
+        </div>
         <select
           aria-label="Estado de compra"
           value={status}
@@ -81,49 +88,25 @@ export function OrdersTable() {
           empty={query.data?.length === 0}
         />
         {query.data && (
-          <table>
-            <thead>
-              <tr>
-                <th>Compra / cliente</th>
-                <th>Estado</th>
-                <th>Importe snapshot</th>
-                <th>Fecha</th>
-                <th>Detalle</th>
-              </tr>
-            </thead>
-            <tbody>
-              {query.data.map((o) => (
-                <tr key={o.id}>
-                  <td>
-                    {o.id}
-                    <br />
-                    {o.customer?.name ?? 'Cliente no disponible'}
-                    <br />
-                    {o.customer?.email}
-                  </td>
-                  <td>{labels[o.status]}</td>
-                  <td>
-                    {money(o.totalCents)} · {o.tickets.length} boletos
-                  </td>
-                  <td>{o.createdAt}</td>
-                  <td>
-                    <button onClick={() => setSelected(o.id)}>
-                      Inspeccionar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <PurchaseRows orders={query.data} onSelect={setSelected} />
         )}
         <Pager
           page={page}
           setPage={setPage}
-          hasNext={query.data?.length === 20}
+          hasNext={query.data?.length === 8}
         />
       </section>
+      <p className="section-note">
+        Confirma los pagos desde el detalle de cada compra. Cancelar una compra
+        en revisión libera sus boletos; los pagos confirmados forman parte de
+        los ingresos cobrados.
+      </p>
       {selected && (
-        <PurchaseDialog id={selected} onClose={() => setSelected(null)} />
+        <PurchaseDialog
+          key={selected}
+          id={selected}
+          onClose={() => setSelected(null)}
+        />
       )}
     </>
   )
@@ -170,28 +153,79 @@ export function PurchaseDialog({
         return result
       },
       target === 'approve'
-        ? 'Pago confirmado. Notificación encolada; no implica correo enviado.'
-        : 'Compra rechazada y boletos liberados. Historia conservada. Notificación encolada.',
+        ? 'Pago confirmado en servidor.'
+        : 'Compra cancelada y boletos liberados. Historia conservada.',
     )
   }
   return (
     <AdminDialog label="Detalle de compra" onClose={onClose} busy={action.busy}>
-      <h2>Compra {id}</h2>
-      <button disabled={action.busy} onClick={onClose}>
-        Cerrar
-      </button>
+      <div className="dialog-header">
+        <div>
+          <p className="small-eyebrow">// DETALLE DE COMPRA</p>
+          <h2>Compra {id.slice(0, 8)}</h2>
+        </div>
+        <button
+          className="icon-button"
+          aria-label="Cerrar compra"
+          disabled={action.busy}
+          onClick={onClose}
+        >
+          <AdminIcon name="close" />
+        </button>
+      </div>
       <Feedback pending={query.isPending} error={query.error} />
       {order && (
         <>
-          <PurchaseFacts order={order} />
-          {order.proofVerified && (
-            <a
-              href={`/api/media/proofs/${id}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Descargar comprobante privado (sin vista PDF incrustada)
-            </a>
+          <div className="purchase-intro">
+            <span className="avatar">
+              {initials(order.customer?.name ?? 'Cliente')}
+            </span>
+            <div>
+              <strong>{order.customer?.name ?? 'Cliente no disponible'}</strong>
+              <small>{order.customer?.email}</small>
+            </div>
+            <StatusPill status={order.status} />
+          </div>
+          {order.proofVerified && <ProofPreview key={id} id={id} />}
+          <details>
+            <summary>Detalles de la compra e instrucciones de pago</summary>
+            <PurchaseFacts order={order} />
+          </details>
+          {order.status === 'awaiting_proof' && (
+            <>
+              <label>
+                Motivo obligatorio
+                <textarea
+                  maxLength={2000}
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                />
+              </label>
+              <button
+                className="button secondary"
+                disabled={action.busy || !reason.trim()}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      'Cancelar esta reserva y liberar sus boletos?',
+                    )
+                  )
+                    void action.run(async () => {
+                      const result = await cancelAdminReservation({
+                        data: { id, reason: reason.trim() },
+                      })
+                      if (!['cancelled', 'expired'].includes(result.status))
+                        throw new Error(
+                          'El servidor no confirmó la cancelación.',
+                        )
+                      setReason('')
+                      return result
+                    }, 'Reserva cancelada o vencida; boletos liberados.')
+                }}
+              >
+                Cancelar reserva y liberar boletos
+              </button>
+            </>
           )}
           {canReview(order) && order.proofVerified && (
             <>
@@ -204,16 +238,18 @@ export function PurchaseDialog({
                 />
               </label>
               <button
+                className="button primary"
                 disabled={action.busy || !reason.trim()}
                 onClick={() => void review('approve')}
               >
-                Confirmar transferencia y aprobar
+                Confirmar pago
               </button>
               <button
                 disabled={action.busy || !reason.trim()}
+                className="button secondary"
                 onClick={() => void review('reject')}
               >
-                Rechazar y liberar boletos
+                Cancelar compra y liberar boletos
               </button>
             </>
           )}

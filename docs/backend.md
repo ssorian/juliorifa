@@ -1,5 +1,13 @@
 # Backend de rifas: bloques 1–4
 
+## Administración corregida — estado actual
+
+La administración usa únicamente **Resumen, Rifas, Compras e Ingresos**, con la estructura de `docs/design/Rifas-Nova-admin.html` y datos reales del servidor. Las secciones históricas de este documento describen implementaciones anteriores: Configuración y Notificaciones fueron retiradas, junto con sus funciones y productores de eventos. `/api/purchases/payment-settings` responde **410**; los jobs actuales solo realizan expiración y recuperación de archivos. Las tablas y migraciones históricas se conservan, sin DDL ni borrado de datos.
+
+Compras abre un diálogo con vista privada de imágenes/PDF del comprobante, descarga alternativa y acciones reales de confirmar o cancelar compras en revisión. También permite cancelar reservas `awaiting_proof`, con autorización administrativa fresca, motivo, auditoría y liberación atómica de boletos. Confirmar pago continúa exigiendo evidencia verificada del servidor.
+
+Las instrucciones de pago ya guardadas en cada compra permanecen inmutables. Para nuevas compras se usa la configuración existente del servidor o, en su ausencia, `PAYMENT_BANK`, `PAYMENT_BENEFICIARY`, `PAYMENT_ACCOUNT` y `PAYMENT_INSTRUCTIONS`, exclusivamente en servidor y solo si están completas. No se inventan cuentas; sin instrucciones completas el snapshot es nulo y no bloquea la reserva. Esta corrección no configura proveedores ni modifica datos reales.
+
 ## Activación segura
 
 Bloque 4A conecta catálogo público, inventario/selección y Mis apartados a los serverFns existentes. Bloque 4B sustituye la UI administrativa local por contratos protegidos del servidor. Solo la intención de checkout se conserva en localStorage (sin identidad ni instrucciones bancarias): token 32hex, TTL 30 minutos y clave idempotente reutilizada al reintentar el mismo payload. Nada se reserva al regresar del login/registro por contraseña: hace falta confirmación explícita. DB de desarrollo preparada mediante autorización posterior: 0000–0004 aplicadas, cinco migraciones registradas y 17 tablas `public` confirmadas; admin privado creado con correo no verificado. Supabase Storage, Resend y jobs siguen pendientes.

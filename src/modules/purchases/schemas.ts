@@ -14,11 +14,3 @@ export const reservationKeyInput = z
 export const reviewInput = z
   .object({ id: z.uuid(), reason: z.string().trim().min(1).max(2000) })
   .strict()
-export const settingsInput = z
-  .object({
-    bank: z.string().trim().min(1).max(200),
-    beneficiary: z.string().trim().min(1).max(200),
-    account: z.string().trim().min(1).max(200),
-    instructions: z.string().trim().min(1).max(4000),
-  })
-  .strict()

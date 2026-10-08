@@ -17,6 +17,8 @@ export interface PurchaseDTO {
   reviewedAt: string | null
   // Only present in requireAdmin-protected DTOs, never own/public responses.
   customer?: { name: string; email: string }
+  raffleTitle?: string
+  proofMime?: string | null
   proofVerified?: boolean
 }
 export interface PaymentInstructions {

@@ -1,36 +1,9 @@
 import '@tanstack/react-start/server-only'
 import { readBoundedBody } from '../../lib/storage/validation'
 import { errorResponse, requireSameOrigin } from '../../lib/storage/http'
-import { reviewInput, settingsInput } from './schemas'
-import { readSettings, saveSettings } from './services'
+import { reviewInput } from './schemas'
 import { DomainError } from './domain'
 import { review } from './proof-services'
-
-export async function settingsResponse(request: Request) {
-  try {
-    if (request.method === 'GET')
-      return Response.json(await readSettings(), {
-        headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' },
-      })
-    requireSameOrigin(request)
-    let input: unknown
-    try {
-      input = JSON.parse(
-        (await readBoundedBody(request, 8192)).toString('utf8'),
-      )
-    } catch (error) {
-      if (error instanceof DomainError) throw error
-      throw new DomainError('INVALID_REQUEST')
-    }
-    const parsed = settingsInput.safeParse(input)
-    if (!parsed.success) throw new DomainError('INVALID_REQUEST')
-    return Response.json(await saveSettings(parsed.data), {
-      headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' },
-    })
-  } catch (error) {
-    return errorResponse(error)
-  }
-}
 
 export async function reviewResponse(
   request: Request,

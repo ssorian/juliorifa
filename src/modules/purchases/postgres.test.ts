@@ -1,7 +1,7 @@
 import test, { before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { readFileSync,readdirSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 import { drizzle } from 'drizzle-orm/pglite'
 import { eq } from 'drizzle-orm'
@@ -17,7 +17,9 @@ import {
 const pg = new PGlite()
 const database = drizzle(pg, { schema })
 before(async () => {
-  for (const name of readdirSync(new URL('../../../drizzle/',import.meta.url)).filter(n=>/^\d{4}.*\.sql$/.test(n)).sort())
+  for (const name of readdirSync(new URL('../../../drizzle/', import.meta.url))
+    .filter((n) => /^\d{4}.*\.sql$/.test(n))
+    .sort())
     await pg.exec(
       readFileSync(
         new URL(`../../../drizzle/${name}`, import.meta.url),
@@ -171,13 +173,12 @@ test('real transaction: ownership denial rolls back; timely proof never expires;
     result.held.map((t) => t.state),
     ['sold', 'sold'],
   )
-  assert.equal(result.outbox.length, 1)
-  assert.equal(result.outbox[0].event, 'purchase.approved')
+  assert.equal(result.outbox.length, 0)
   assert.equal(result.events.filter((e) => e.type === 'approved').length, 1)
   assert.equal(result.order.totalCents, 200)
   assert.equal(result.order.feeCents, 5)
 })
-test('real transaction: reject keeps history/audit and releases tickets with one outbox event', async () => {
+test('real transaction: reject keeps history/audit and releases tickets without notification events', async () => {
   const f = await fixture()
   await finalizeWithRepository(f.repo(), 'u', 99)
   await reviewWithRepository(
@@ -191,7 +192,7 @@ test('real transaction: reject keeps history/audit and releases tickets with one
   const result = await f.read()
   assert.equal(result.held.length, 0)
   assert.equal(result.history.length, 2)
-  assert.equal(result.outbox.length, 1)
+  assert.equal(result.outbox.length, 0)
   assert.equal(result.order.reviewerId, 'a')
   assert.equal(result.events.at(-1)?.reason, 'Receipt illegible')
 })

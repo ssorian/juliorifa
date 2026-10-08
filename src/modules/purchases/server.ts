@@ -1,11 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { idInput, pageInput, adminListInput } from '../raffles/schemas/backend'
-import {
-  reserveInput,
-  settingsInput,
-  reviewInput,
-  reservationKeyInput,
-} from './schemas'
+import { reserveInput, reviewInput, reservationKeyInput } from './schemas'
 import { safe } from './repository'
 import * as service from './services'
 import * as proof from './proof-services'
@@ -27,6 +22,9 @@ export const ownPurchase = createServerFn({ method: 'GET' })
 export const cancelReservation = createServerFn({ method: 'POST' })
   .inputValidator(idInput)
   .handler(({ data }) => safe(() => service.cancel(data.id)))
+export const cancelAdminReservation = createServerFn({ method: 'POST' })
+  .inputValidator(reviewInput)
+  .handler(({ data }) => safe(() => service.adminCancel(data.id, data.reason)))
 export const adminPurchases = createServerFn({ method: 'GET' })
   .inputValidator(adminListInput)
   .handler(({ data }) =>
@@ -35,16 +33,6 @@ export const adminPurchases = createServerFn({ method: 'GET' })
 export const adminPurchase = createServerFn({ method: 'GET' })
   .inputValidator(idInput)
   .handler(({ data }) => safe(() => service.detail(data.id, true)))
-export const configurePayment = createServerFn({ method: 'POST' })
-  .inputValidator(settingsInput)
-  .handler(({ data }) => safe(() => service.saveSettings(data)))
-// Settings reads are admin-only; clients get the immutable snapshot in ownPurchase.
-export const paymentInstructions = createServerFn({ method: 'GET' }).handler(
-  () => safe(service.readSettings),
-)
-export const adminPaymentInstructions = createServerFn({
-  method: 'GET',
-}).handler(() => safe(service.readSettings))
 export const approvePurchase = createServerFn({ method: 'POST' })
   .inputValidator(reviewInput)
   .handler(({ data }) => safe(() => proof.review(data.id, 'paid', data.reason)))

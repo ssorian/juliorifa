@@ -4,27 +4,19 @@ import { useRouter } from '@tanstack/react-router'
 import { authClient } from '../../lib/auth-client'
 import { currentUser } from '../auth/services/session'
 import BetterAuthHeader from '../../integrations/better-auth/header-user'
-import { AdminIdentity, useAdminQuery } from './hooks/useAdmin'
-import { adminPaymentInstructions } from '../purchases/server'
+import { AdminIdentity } from './hooks/useAdmin'
 import { canRenderAdmin } from './lib/admin'
 import { Overview } from './components/Overview'
 import { RafflesTable } from './components/RafflesTable'
 import { OrdersTable } from './components/Purchases'
 import { Income } from './components/Income'
-import { Settings } from './components/Settings'
-import { Notifications } from './components/Notifications'
 import { Feedback } from './components/Feedback'
+import { AdminIcon } from './components/AdminIcon'
+import { RaffleEditor } from './components/RaffleEditor'
 import './design.css'
 import './react.css'
 
-const tabs = [
-  'Resumen',
-  'Rifas',
-  'Compras',
-  'Ingresos',
-  'Configuración',
-  'Notificaciones',
-] as const
+const tabs = ['Resumen', 'Rifas', 'Compras', 'Ingresos'] as const
 export function Dashboard() {
   const { data: session, isPending } = authClient.useSession()
   const identity = session?.user.id ?? null
@@ -67,10 +59,8 @@ export function Dashboard() {
   )
 }
 function Workspace() {
-  const settings = useAdminQuery('settings', '', () =>
-    adminPaymentInstructions(),
-  )
-  const [tab, setTab] = useState<string>('Resumen')
+  const [creating, setCreating] = useState(false)
+  const [tab, setTab] = useState<(typeof tabs)[number]>('Resumen')
   useEffect(() => {
     function route() {
       const hash = decodeURI(window.location.hash.slice(1))
@@ -89,10 +79,13 @@ function Workspace() {
         <a className="brand" href="/">
           <span className="brand-mark">N</span>
           <span>
-            NOVA<small>ADMIN WORKSPACE</small>
+            NOVA<small>CONTROL CENTER</small>
           </span>
         </a>
-        <p className="workspace-label">OPERACIÓN</p>
+        <div className="workspace-label">
+          <span>ADMINISTRACIÓN</span>
+          <span className="tiny-pill">V.01</span>
+        </div>
         <nav>
           {tabs.map((t, i) => (
             <a
@@ -102,27 +95,41 @@ function Workspace() {
               aria-current={tab === t ? 'page' : undefined}
               onClick={() => setTab(t)}
             >
-              <span>{['◈', '▤', '⌑', '↗', '⚙', '✉'][i]}</span>
+              <AdminIcon
+                name={(['grid', 'ticket', 'cart', 'chart'] as const)[i]}
+              />
               {t}
             </a>
           ))}
         </nav>
         <div className="sidebar-note">
-          <p className="small-eyebrow">// MAKE YOUR LUCK</p>
-          <p>Tu operación, en el siguiente nivel.</p>
+          <p className="small-eyebrow">// TU OPERACIÓN</p>
+          <p>
+            Cada número cuenta.
+            <br />
+            Ten el control de cada rifa.
+          </p>
           <span className="sidebar-decoration">NOVA</span>
         </div>
         <a className="store-link" href="/">
-          ↗ Ver sitio público
+          <AdminIcon name="external" /> Ver sitio de rifas
         </a>
       </aside>
       <div className="admin-workspace">
         <header className="topbar">
           <p className="breadcrumb">
-            Workspace <span>/</span>
+            Administración <span>/</span>
             <strong>{tab}</strong>
           </p>
           <div className="topbar-right">
+            <span id="today-label">
+              {new Intl.DateTimeFormat('es-MX', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                timeZone: 'America/Mexico_City',
+              }).format(new Date())}
+            </span>
             <BetterAuthHeader />
           </div>
         </header>
@@ -130,26 +137,50 @@ function Workspace() {
           <div className="page-heading">
             <div>
               <p className="small-eyebrow">// NOVA ADMIN</p>
-              <h1>{tab}</h1>
-              <p>Tus rifas, compras e ingresos en un mismo lugar.</p>
+              <h1>
+                {
+                  {
+                    Resumen: 'Resumen de operación',
+                    Rifas: 'Tus rifas',
+                    Compras: 'Compras y participantes',
+                    Ingresos: 'Ingresos y resultados',
+                  }[tab]
+                }
+              </h1>
+              <p>
+                {
+                  {
+                    Resumen: 'Tus rifas, compras e ingresos en un mismo lugar.',
+                    Rifas:
+                      'Crea premios, configura boletos y controla la disponibilidad.',
+                    Compras:
+                      'Consulta los compradores, sus números y la confirmación de pago.',
+                    Ingresos:
+                      'Lo cobrado, lo pendiente y el costo de cada premio.',
+                  }[tab]
+                }
+              </p>
             </div>
+            {['Resumen', 'Rifas'].includes(tab) && (
+              <button
+                className="button primary"
+                onClick={() => setCreating(true)}
+              >
+                <AdminIcon name="plus" />
+                Crear rifa
+              </button>
+            )}
           </div>
-          <Feedback error={settings.error} />
-          {settings.data === null && (
-            <p role="alert">
-              Falta configuración bancaria. Completa Configuración antes de
-              aceptar reservas públicas.
-            </p>
-          )}
           {tab === 'Resumen' && <Overview />}
           {tab === 'Rifas' && <RafflesTable />}
           {tab === 'Compras' && <OrdersTable />}
           {tab === 'Ingresos' && <Income />}
-          {tab === 'Configuración' && <Settings />}
-          {tab === 'Notificaciones' && <Notifications />}
+          {creating && (
+            <RaffleEditor raffle={null} onClose={() => setCreating(false)} />
+          )}
         </main>
         <footer className="admin-footer">
-          <span>NOVA · NEXT LEVEL OPERATIONS</span>
+          <span>NOVA ADMIN /// CONTROL CENTER</span>
           <span>Servidor como única autoridad</span>
         </footer>
       </div>

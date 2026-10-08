@@ -1,28 +1,27 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { retryDelay, deliveryTemplate, eventKey } from './domain'
+import { readFileSync, existsSync } from 'node:fs'
+import { retryDelay } from '../../lib/storage/retry'
 
-test('retry exponential bounded, stable event key and plaintext fixed origin', () => {
+test('storage retries remain independent of retired notifications', () => {
   assert.equal(retryDelay(1), 30000)
   assert.equal(retryDelay(8), 3600000)
-  assert.equal(eventKey('id'), eventKey('id'))
-  const text = deliveryTemplate('raffle.winner', {
-    title: 'Prize',
-    ticket: 0,
-    beneficiary: 'Organizer',
-    reason: '',
-    origin: 'https://app.test/ignored?redirect=evil',
-  }).text
-  assert.match(text, /https:\/\/app.test\/mis-compras/)
-  assert.doesNotMatch(text, /redirect=evil/)
-  assert.match(text, /0/)
-  assert.throws(() =>
-    deliveryTemplate('raffle.winner', {
-      title: 'P',
-      ticket: 0,
-      beneficiary: 'O',
-      reason: '',
-      origin: 'javascript:alert(1)',
-    }),
+  const source = readFileSync(
+    new URL('../../lib/storage/recovery-repository.ts', import.meta.url),
+    'utf8',
   )
+  assert.doesNotMatch(source, /notifications/)
+})
+test('notification runtime entrypoints have no exports or server functions', () => {
+  for (const file of [
+    'server',
+    'delivery',
+    'worker',
+    'repository',
+    'domain',
+    'jobs',
+    'schemas',
+  ]) {
+    assert.equal(existsSync(new URL(`./${file}.ts`, import.meta.url)), false)
+  }
 })

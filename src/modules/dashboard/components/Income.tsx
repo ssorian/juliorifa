@@ -1,64 +1,152 @@
-import { useState } from 'react'
 import { adminFinancialMetrics } from '../services/backend'
 import { useAdminQuery } from '../hooks/useAdmin'
 import { money } from '../../../lib/utils/money'
 import { Feedback } from './Feedback'
-import { RaffleFilter } from './RaffleFilter'
-import { RevenueChart } from './RevenueChart'
+import { MetricCards } from './MetricCards'
+import { AdminIcon } from './AdminIcon'
 
 export function Income() {
-  const [raffleId, setRaffle] = useState('')
-  const query = useAdminQuery('finance', raffleId, () =>
-    adminFinancialMetrics({ data: { raffleId: raffleId || undefined } }),
+  const query = useAdminQuery('finance', '', () =>
+    adminFinancialMetrics({ data: {} }),
   )
   const data = query.data
   return (
     <>
-      <RaffleFilter value={raffleId} onChange={setRaffle} />
       <Feedback pending={query.isPending} error={query.error} />
       {data && (
         <>
-          <section className="metric-grid">
-            {[
-              ['Cobrado confirmado', money(data.paidCents)],
-              ['En revisión (no cobrado)', money(data.reviewingCents)],
-              ['Fee histórico gasto admin', money(data.feeExpenseCents)],
-              ['Costo premios', money(data.prizeCostCents)],
-              ['Otros gastos', money(data.expensesCents)],
-              ['Resultado neto', money(data.resultCents)],
-              ['Compras pagadas', String(data.paidOrders)],
-              ['Boletos pagados', String(data.paidTickets)],
-            ].map(([label, value]) => (
-              <article className="panel metric-card" key={label}>
-                <h3>{label}</h3>
-                <strong>{value}</strong>
-              </article>
-            ))}
-          </section>
-          <p>
-            Precio y fee de cada compra son snapshots. El fee no es un recargo
-            al comprador. Pendiente en revisión es distinto del dinero cobrado.
-          </p>
-          <section className="panel">
-            <h2>Inventario actual</h2>
-            <p>{data.raffleCount} rifas</p>
-            <dl>
-              {Object.entries(data.stock).map(([key, value]) => (
-                <div key={key}>
-                  <dt>{key}</dt>
-                  <dd>{value}</dd>
+          <MetricCards data={data} />
+          <div className="finance-layout">
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <h2>De ingresos a resultado</h2>
+                  <p>Desglose acumulado de todas las rifas</p>
                 </div>
-              ))}
-            </dl>
-          </section>
+                <span className="status-pill scheduled">MXN</span>
+              </div>
+              <div className="finance-waterfall">
+                <div className="finance-line">
+                  <span>
+                    Ingresos cobrados
+                    <br />
+                    <small>Solo compras marcadas como pagadas</small>
+                  </span>
+                  <strong>{money(data.paidCents)}</strong>
+                </div>
+                <div className="finance-line">
+                  <span>Comisiones registradas</span>
+                  <strong>− {money(data.feeExpenseCents)}</strong>
+                </div>
+                <div className="finance-line">
+                  <span>Costo de los premios</span>
+                  <strong>− {money(data.prizeCostCents)}</strong>
+                </div>
+                <div className="finance-line">
+                  <span>Otros gastos capturados</span>
+                  <strong>− {money(data.expensesCents)}</strong>
+                </div>
+                <div
+                  className={
+                    'finance-line total ' +
+                    (data.resultCents < 0 ? 'negative' : '')
+                  }
+                >
+                  <span>Resultado estimado</span>
+                  <strong>{money(data.resultCents)}</strong>
+                </div>
+                <p className="finance-note">
+                  Se descuenta el costo completo de cada premio y los gastos
+                  capturados, aunque la rifa aún no termine. Esta estimación no
+                  equivale a ingresos disponibles en banco.
+                </p>
+              </div>
+            </section>
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <h2>Por confirmar</h2>
+                  <p>Estos importes aún no son ingresos</p>
+                </div>
+              </div>
+              <div className="income-stat-list">
+                <div>
+                  <AdminIcon name="clock" />
+                  <div>
+                    <strong>{money(data.pendingCents)}</strong>
+                    <small>Pagos pendientes</small>
+                  </div>
+                </div>
+                <div>
+                  <AdminIcon name="cart" />
+                  <div>
+                    <strong>{data.pendingOrders}</strong>
+                    <small>Compras sin confirmar</small>
+                  </div>
+                </div>
+                <div>
+                  <AdminIcon name="ticket" />
+                  <div>
+                    <strong>
+                      {data.pendingTickets.toLocaleString('es-MX')}
+                    </strong>
+                    <small>Boletos reservados</small>
+                  </div>
+                </div>
+              </div>
+              <div className="panel-footer">
+                <a href="#compras" className="text-button">
+                  Revisar compras
+                </a>
+              </div>
+            </section>
+          </div>
           <section className="panel">
-            <RevenueChart chart={data.chart} />
-            {data.unknownApprovalCount > 0 && (
-              <p>
-                Hay {data.unknownApprovalCount} pagos históricos sin fecha de
-                aprobación; incluidos en total, no inventados en gráfica.
-              </p>
-            )}
+            <div className="panel-header">
+              <div>
+                <h2>Resultado por rifa</h2>
+                <p>
+                  El precio de una venta histórica conserva su valor original
+                </p>
+              </div>
+            </div>
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>RIFA</th>
+                    <th>BOLETOS PAGADOS</th>
+                    <th>COBRADO</th>
+                    <th>COMISIONES</th>
+                    <th>PREMIO + GASTOS</th>
+                    <th>RESULTADO ESTIMADO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.raffles.map((raffle) => (
+                    <tr key={raffle.id}>
+                      <td className="table-product">{raffle.title}</td>
+                      <td>{raffle.paidTickets.toLocaleString('es-MX')}</td>
+                      <td className="money-cell">{money(raffle.paidCents)}</td>
+                      <td>{money(raffle.feeExpenseCents)}</td>
+                      <td>
+                        {money(raffle.prizeCostCents + raffle.expensesCents)}
+                      </td>
+                      <td
+                        className={
+                          'money-cell ' +
+                          (raffle.resultCents < 0
+                            ? 'negative-text'
+                            : 'positive-text')
+                        }
+                      >
+                        {money(raffle.resultCents)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         </>
       )}

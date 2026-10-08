@@ -15,27 +15,30 @@ export function RaffleFilter({
     adminRaffles({ data: { offset: page * 100, limit: 100 } }),
   )
   return (
-    <div>
-      <label>
-        Filtrar por rifa
-        <select value={value} onChange={(e) => onChange(e.target.value)}>
-          <option value="">Todas las rifas</option>
-          {value && !query.data?.some((r) => r.id === value) && (
-            <option value={value}>{value}</option>
-          )}
-          {query.data?.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.title}
-            </option>
-          ))}
-        </select>
-      </label>
+    <div className="raffle-filter">
+      <select
+        aria-label="Filtrar por rifa"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">Todas las rifas</option>
+        {value && !query.data?.some((r) => r.id === value) && (
+          <option value={value}>{value}</option>
+        )}
+        {query.data?.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.title}
+          </option>
+        ))}
+      </select>
       <Feedback error={query.error} />
-      <Pager
-        page={page}
-        setPage={setPage}
-        hasNext={query.data?.length === 100}
-      />
+      {(page > 0 || query.data?.length === 100) && (
+        <Pager
+          page={page}
+          setPage={setPage}
+          hasNext={query.data?.length === 100}
+        />
+      )}
     </div>
   )
 }

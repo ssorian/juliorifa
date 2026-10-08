@@ -14,6 +14,10 @@ Object.assign(process.env, {
   RESEND_API_KEY: 'fixture-invalid',
   EMAIL_FROM: 'fixture@fixture.invalid',
   JOBS_ENABLED: 'false',
+  PAYMENT_BANK: 'Fixture Bank',
+  PAYMENT_BENEFICIARY: 'Fixture Organizer',
+  PAYMENT_ACCOUNT: 'fixture-account',
+  PAYMENT_INSTRUCTIONS: 'Fixture transfer only',
 })
 const originalFetch = globalThis.fetch
 globalThis.fetch = (input, init) => {

@@ -13,6 +13,8 @@ import { RaffleEditor } from './RaffleEditor'
 import { InventoryDialog } from './InventoryDialog'
 import { AdminDialog } from './AdminDialog'
 import { AdminImage } from './AdminImage'
+import { AdminIcon } from './AdminIcon'
+import { StatusPill, adminDate } from './PurchaseRows'
 import type { AdminRaffle } from './RaffleEditor'
 
 export function RafflesTable() {
@@ -30,18 +32,24 @@ export function RafflesTable() {
         data: { offset: page * 20, limit: 20, search, status: status as 'all' },
       }),
   )
+  const metrics = useAdminQuery('finance', '', () =>
+    adminFinancialMetrics({ data: {} }),
+  )
   return (
     <>
       <div className="toolbar">
-        <input
-          aria-label="Buscar rifa"
-          placeholder="Buscar título o descripción"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setPage(0)
-          }}
-        />
+        <div className="search-control">
+          <AdminIcon name="search" />
+          <input
+            aria-label="Buscar rifa"
+            placeholder="Buscar producto o rifa"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(0)
+            }}
+          />
+        </div>
         <select
           aria-label="Estado de rifa"
           value={status}
@@ -65,9 +73,9 @@ export function RafflesTable() {
             </option>
           ))}
         </select>
-        <button className="button primary" onClick={() => setEditing(null)}>
-          Crear rifa
-        </button>
+        <span className="toolbar-note">
+          {query.data?.length ?? '—'} rifas en esta página
+        </span>
       </div>
       <section className="panel">
         <Feedback
@@ -76,49 +84,103 @@ export function RafflesTable() {
           empty={query.data?.length === 0}
         />
         {query.data && (
-          <table>
-            <thead>
-              <tr>
-                <th>Rifa</th>
-                <th>Estado</th>
-                <th>Precio</th>
-                <th>Inventario</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {query.data.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    {r.images[0] && (
-                      <AdminImage
-                        url={r.images[0].mediaUrl}
-                        alt={r.images[0].alt}
-                      />
-                    )}
-                    <strong>{r.title}</strong>
-                    <small>{r.id}</small>
-                  </td>
-                  <td>{labels[r.status]}</td>
-                  <td>{money(r.priceCents)}</td>
-                  <td>
-                    {r.startNumber} — {r.startNumber + r.ticketCount - 1}
-                  </td>
-                  <td>
-                    <button onClick={() => setEditing(r)}>
-                      Editar / archivar
-                    </button>
-                    <button onClick={() => setInventory(r)}>
-                      Inventario / CSV
-                    </button>
-                    <button onClick={() => setDrawing(r)}>
-                      Sorteo / resultado
-                    </button>
-                  </td>
+          <div className="table-scroll">
+            <table className="raffle-table">
+              <thead>
+                <tr>
+                  <th>PRODUCTO</th>
+                  <th>ESTADO</th>
+                  <th>FECHA DEL SORTEO</th>
+                  <th>PRECIO / BOLETO</th>
+                  <th>DISPONIBILIDAD</th>
+                  <th>INGRESOS COBRADOS</th>
+                  <th>ACCIONES</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {query.data.map((r) => {
+                  const metric = metrics.data?.raffles.find(
+                    (item) => item.id === r.id,
+                  )
+                  return (
+                    <tr key={r.id}>
+                      <td>
+                        <div className="raffle-product">
+                          <AdminImage
+                            url={r.images[0]?.mediaUrl}
+                            alt={r.title}
+                          />
+                          <div>
+                            <strong>{r.title}</strong>
+                            <small>
+                              {r.features[0]
+                                ? `${r.features[0].title} · ${r.features[0].description}`
+                                : 'Producto personalizado'}
+                            </small>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <StatusPill status={r.status} />
+                      </td>
+                      <td>{adminDate(r.drawAt)}</td>
+                      <td className="money-cell">{money(r.priceCents)}</td>
+                      <td className="ticket-breakdown">
+                        <strong>
+                          {metric?.stock.available.toLocaleString('es-MX') ??
+                            '—'}{' '}
+                          disponibles
+                        </strong>
+                        <small>
+                          {metric?.stock.sold.toLocaleString('es-MX') ?? '—'}{' '}
+                          vendidos ·{' '}
+                          {metric
+                            ? (
+                                metric.stock.reserved + metric.stock.reviewing
+                              ).toLocaleString('es-MX')
+                            : '—'}{' '}
+                          reservados
+                        </small>
+                        <div className="mini-progress">
+                          <span
+                            style={{
+                              width: `${((metric?.stock.sold ?? 0) / r.ticketCount) * 100}%`,
+                            }}
+                          />
+                        </div>
+                      </td>
+                      <td className="money-cell">
+                        {metric ? money(metric.paidCents) : '—'}
+                      </td>
+                      <td>
+                        <div className="row-actions">
+                          <button
+                            className="icon-button"
+                            aria-label={`Editar ${r.title}`}
+                            onClick={() => setEditing(r)}
+                          >
+                            <AdminIcon name="edit" />
+                          </button>
+                          <button
+                            className="button ghost"
+                            onClick={() => setInventory(r)}
+                          >
+                            Boletos
+                          </button>
+                          <button
+                            className="text-button"
+                            onClick={() => setDrawing(r)}
+                          >
+                            Sorteo
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
         <Pager
           page={page}
@@ -126,6 +188,12 @@ export function RafflesTable() {
           hasNext={query.data?.length === 20}
         />
       </section>
+      <Feedback error={metrics.error} />
+      <p className="section-note">
+        Los cambios se guardan en servidor. Los boletos reservados aún no
+        cuentan como vendidos; las compras históricas conservan su precio
+        original.
+      </p>
       {editing !== undefined && (
         <RaffleEditor
           key={editing?.id ?? 'new'}
@@ -229,7 +297,7 @@ function DrawDialog({
               )
                 void action.run(
                   () => executeDraw({ data: { id: raffle.id } }),
-                  'Ganador registrado. Notificación encolada, no enviada todavía.',
+                  'Ganador registrado. Resultado y auditoría conservados.',
                 )
             }}
           >

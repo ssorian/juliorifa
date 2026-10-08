@@ -6,11 +6,7 @@ import { mediaAssets as assets } from './db'
 import { raffles } from '../../modules/raffles/db/schema'
 import { purchases } from '../../modules/purchases/db/schema'
 import { DomainError } from '../../modules/purchases/domain'
-import {
-  retryDelay,
-  LEASE_MS,
-  MAX_ATTEMPTS,
-} from '../../modules/notifications/domain'
+import { retryDelay, LEASE_MS, MAX_ATTEMPTS } from './retry'
 import { canClean } from './recovery-domain'
 
 export type RecoveryDatabase = Pick<

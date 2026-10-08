@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { settingsResponse } from '#/modules/purchases/http'
 
+// Retired endpoint: no configuration read or write is exposed.
 export const Route = createFileRoute('/api/purchases/payment-settings')({
   server: {
     handlers: {
-      GET: ({ request }) => settingsResponse(request),
-      POST: ({ request }) => settingsResponse(request),
+      GET: () => new Response(null, { status: 410 }),
+      POST: () => new Response(null, { status: 410 }),
     },
   },
 })

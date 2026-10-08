@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 import { createHash, randomUUID } from 'node:crypto'
-import { and, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, eq, ilike, or, sql, desc } from 'drizzle-orm'
 import { user } from '../auth/db/schema'
 import { mediaAssets } from '../../lib/storage/db'
 import { db } from '../../db'
@@ -15,7 +15,6 @@ import {
   occupancy,
   purchaseEvents,
   paymentSettings,
-  paymentSettingsEvents,
 } from './db/schema'
 import {
   assertSamePayload,
@@ -31,10 +30,16 @@ import {
   findOwnReservationByKey,
 } from './repository'
 import type { z } from 'zod'
-import type { reserveInput, settingsInput } from './schemas'
+import type { reserveInput } from './schemas'
 import type { adminListInput } from '../raffles/schemas/backend'
-import { cancelWithRepository, snapshotInstructions } from './workflow'
+import {
+  cancelWithRepository,
+  adminCancelWithRepository,
+  snapshotInstructions,
+} from './workflow'
 import { createWorkflowRepository } from './workflow-repository'
+import { resolvePaymentInstructions } from './payment-config'
+import { raffles } from '../raffles/db/schema'
 
 export async function lookupOwnReservationByKey(idempotencyKey: string) {
   const actor = await requireUser()
@@ -100,7 +105,9 @@ export async function reserve(data: z.infer<typeof reserveInput>) {
       })
       .from(paymentSettings)
       .where(eq(paymentSettings.id, 1))
-    const paymentSnapshot = snapshotInstructions(settingsRows.at(0) ?? null)
+    const paymentSnapshot = snapshotInstructions(
+      resolvePaymentInstructions(settingsRows.at(0) ?? null, process.env),
+    )
     const id = randomUUID()
     const [order] = await tx
       .insert(purchases)
@@ -174,6 +181,12 @@ export async function detail(id: string, admin = false) {
       tickets.map((t) => t.ticketNumber),
     )
     if (!admin) return result
+    const raffle = (
+      await tx
+        .select({ title: raffles.title })
+        .from(raffles)
+        .where(eq(raffles.id, fresh.raffleId))
+    ).at(0)
     const [customer] = await tx
       .select({ name: user.name, email: user.email })
       .from(user)
@@ -188,6 +201,8 @@ export async function detail(id: string, admin = false) {
     return {
       ...result,
       customer,
+      raffleTitle: raffle?.title ?? 'Rifa no disponible',
+      proofMime: asset?.mime ?? null,
       proofVerified:
         !!asset &&
         asset.kind === 'proof' &&
@@ -214,6 +229,21 @@ export async function cancel(id: string) {
       now,
     }),
     actor.id,
+    () => Date.now(),
+  )
+  return { id, ...result }
+}
+export async function adminCancel(id: string, reason: string) {
+  const { actor, order } = await authorizedOrder(id, true)
+  const result = await adminCancelWithRepository(
+    createWorkflowRepository(db, {
+      orderId: id,
+      raffleId: order.raffleId,
+      actorId: actor.id,
+      now: Date.now(),
+    }),
+    actor.role,
+    reason,
     () => Date.now(),
   )
   return { id, ...result }
@@ -251,41 +281,8 @@ export async function list(
           )
         : eq(purchases.userId, actor.id),
     )
-    .orderBy(purchases.createdAt, purchases.id)
+    .orderBy(desc(purchases.createdAt), desc(purchases.id))
     .offset(offset)
     .limit(limit)
   return Promise.all(rows.map((row) => detail(row.id, admin)))
-}
-export async function saveSettings(data: z.infer<typeof settingsInput>) {
-  const actor = await requireAdmin()
-  await db.transaction(async (tx) => {
-    const now = new Date()
-    await tx
-      .insert(paymentSettings)
-      .values({ id: 1, ...data, updatedBy: actor.id, updatedAt: now })
-      .onConflictDoUpdate({
-        target: paymentSettings.id,
-        set: { ...data, updatedBy: actor.id, updatedAt: now },
-      })
-    await tx.insert(paymentSettingsEvents).values({
-      id: randomUUID(),
-      actorId: actor.id,
-      snapshot: { ...data },
-      createdAt: now,
-    })
-  })
-  return { ok: true }
-}
-export async function readSettings() {
-  await requireAdmin()
-  const rows = await db
-    .select({
-      bank: paymentSettings.bank,
-      beneficiary: paymentSettings.beneficiary,
-      account: paymentSettings.account,
-      instructions: paymentSettings.instructions,
-    })
-    .from(paymentSettings)
-    .where(eq(paymentSettings.id, 1))
-  return rows.at(0) ?? null
 }
