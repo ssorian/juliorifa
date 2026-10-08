@@ -11,7 +11,7 @@ export const Route = createFileRoute('/auth/complete')({
   }),
   beforeLoad: async ({ search }) => {
     const user = await currentUser()
-    if (!user) throw redirect({ href: '/login?error=link' })
+    if (!user) throw redirect({ href: '/login?error=session' })
     throw redirect({ href: postAuthDestination(user.role, search.checkout) })
   },
 })

@@ -81,9 +81,27 @@ try {
   const page = await context.newPage()
   let pageErrors = 0
   let hydrationErrors = 0
-  page.on('pageerror', () => {
+  const recordPageError = (error: Error) => {
     pageErrors++
-  })
+    // Fixed categories only: never print provider messages, URLs or auth data.
+    const category = [
+      'fetch',
+      'abort',
+      'import',
+      'insertBefore',
+      'removeChild',
+      'hydration',
+      'undefined',
+      'null',
+      'network',
+      'timeout',
+    ].filter((term) => error.message.toLowerCase().includes(term.toLowerCase()))
+    console.log(
+      'CHECK browser error categories:',
+      category.join(',') || 'unclassified',
+    )
+  }
+  page.on('pageerror', recordPageError)
   page.on('console', (message: { text: () => string }) => {
     if (/hydration|hydrated|did not match/i.test(message.text()))
       hydrationErrors++
@@ -95,42 +113,94 @@ try {
     assert.ok(!page.url().includes(path))
   }
   console.log('PASS visitor dashboard/account redirects')
-  stage = 'native magic-link client session'
-  async function login(email: string, role?: string) {
-    const response = await context.request.post(
-      base + '/api/auth/sign-in/magic-link',
-      {
-        timeout: 15000,
-        headers: { Origin: base },
-        data: { email, callbackURL: '/mis-compras', ...(role ? { role } : {}) },
-      },
-    )
-    assert.equal(response.status(), 200, 'native sign-in HTTP status')
-    stage = 'native magic-link captured delivery'
-    const mail = await (
-      await helper(`mail?email=${encodeURIComponent(email)}`)
-    ).json()
-    assert.ok(mail.link)
-    stage = 'native magic-link verification'
-    await page.goto(mail.link)
-    await page.waitForLoadState('networkidle')
-    stage = 'native session lookup'
-    const session = await context.request.get(base + '/api/auth/get-session', {
+  stage = 'native password client session'
+  const password = randomBytes(24).toString('hex') // In-memory fixture only; never logged.
+  const registered = new Set<string>()
+  const authHeaders = { Origin: base, 'x-forwarded-for': '127.0.0.1' }
+  async function nativeAuth(path: string, data: unknown) {
+    return context.request.post(base + '/api/auth/' + path, {
       timeout: 15000,
+      headers: authHeaders,
+      data,
+      maxRedirects: 0,
     })
-    const data = await session.json()
+  }
+  async function login(email: string, role?: string) {
+    const signup = !registered.has(email)
+    const path = signup ? 'sign-up/email' : 'sign-in/email'
+    const body = {
+      email,
+      password,
+      name: 'Fixture Client',
+      callbackURL: '/dashboard',
+      ...(role ? { role } : {}),
+    }
+    let response = await nativeAuth(path, body)
+    if (response.status() === 429) {
+      console.log('CHECK respecting native password rate-limit window (61s)')
+      await delay(61000)
+      response = await nativeAuth(path, body)
+    }
+    assert.equal(response.status(), 200, 'native password HTTP status')
+    if (signup)
+      registered.add(email) // Never fall back to signup after a failed login.
+    else assert.equal((await response.json()).url, '/auth/complete')
+    const data = await (
+      await context.request.get(base + '/api/auth/get-session')
+    ).json()
     assert.ok(data?.user, 'native session missing')
     assert.equal(data.user.email, email)
+    assert.equal(data.user.emailVerified, false)
     return data
   }
   const client = await login('client@fixture.invalid', 'admin')
-  const usedLink = (
-    await (await helper('mail?email=client%40fixture.invalid')).json()
-  ).link
-  const replay = await context.request.get(usedLink, { maxRedirects: 0 })
-  assert.ok(replay.headers().location?.includes('error='))
-  console.log('PASS native one-use magic-link replay rejection')
   assert.equal(client.user.role, 'client')
+  await context.clearCookies()
+  const wrong = await nativeAuth('sign-in/email', {
+    email: 'client@fixture.invalid',
+    password: randomBytes(24).toString('hex'),
+  })
+  assert.equal(wrong.status(), 401)
+  assert.equal(
+    await (await context.request.get(base + '/api/auth/get-session')).json(),
+    null,
+  )
+  const weak = await nativeAuth('sign-up/email', {
+    email: 'weak@fixture.invalid',
+    name: 'Fixture',
+    password: randomBytes(4).toString('hex'),
+  })
+  assert.equal(weak.status(), 400)
+  const replacement = randomBytes(24).toString('hex')
+  const duplicate = await nativeAuth('sign-up/email', {
+    email: 'client@fixture.invalid',
+    name: 'Replacement',
+    password: replacement,
+    role: 'admin',
+  })
+  assert.equal(duplicate.status(), 422)
+  assert.equal(
+    await (await context.request.get(base + '/api/auth/get-session')).json(),
+    null,
+  )
+  const replacedLogin = await nativeAuth('sign-in/email', {
+    email: 'client@fixture.invalid',
+    password: replacement,
+  })
+  assert.equal(replacedLogin.status(), 401)
+  const oversized = await nativeAuth('sign-up/email', {
+    email: 'oversized@fixture.invalid',
+    name: 'Fixture',
+    password: randomBytes(65).toString('hex'),
+  })
+  assert.equal(oversized.status(), 400)
+  const unchanged = await login('client@fixture.invalid')
+  assert.equal(unchanged.user.id, client.user.id)
+  assert.equal(unchanged.user.role, 'client')
+  assert.equal((await (await helper('counts')).json()).messages, 0)
+  console.log(
+    'PASS native wrong-password denial, weak-password rejection, duplicate cannot replace credential, no auth mail',
+  )
   const clientCookies = await context.cookies()
   await page.goto(base + '/mis-compras')
   await page.waitForLoadState('networkidle')
@@ -143,6 +213,11 @@ try {
   )
   stage = 'native admin promotion and fresh session'
   await context.clearCookies()
+  assert.equal(
+    (await helper('promote', 'POST')).status,
+    500,
+    'no missing-user promotion',
+  )
   await login('admin@fixture.invalid')
   stage = 'private fixture promotion'
   assert.equal((await helper('promote', 'POST')).status, 200)
@@ -316,18 +391,20 @@ try {
     `${base}/api/media/proofs/${original.id}`,
     { maxRedirects: 0 },
   )
-  assert.ok([302, 303, 307].includes(media.status()))
-  const object = await context.request.get(media.headers().location)
-  assert.equal(object.status(), 200)
-  assert.match(object.headers()['content-disposition'], /attachment/)
-  const normalizedProof = await object.body()
+  assert.equal(media.status(), 200)
+  assert.equal(media.headers().location, undefined)
+  assert.equal(media.headers()['cache-control'], 'private, no-store')
+  assert.equal(media.headers()['x-content-type-options'], 'nosniff')
+  assert.equal(media.headers()['referrer-policy'], 'no-referrer')
+  assert.equal(
+    media.headers()['content-disposition'],
+    'attachment; filename="receipt.png"',
+  )
+  const normalizedProof = await media.body()
   assert.deepEqual(
     await sharp(normalizedProof).raw().toBuffer(),
     await sharp(png).raw().toBuffer(),
   )
-  const tampered = new URL(media.headers().location)
-  tampered.searchParams.set('expires', String(Date.now() + 3600000))
-  assert.equal((await context.request.get(tampered.toString())).status(), 404)
   const reviewing = await rpc(purchaseModule, 'ownPurchase', {
     id: original.id,
   })
@@ -349,6 +426,16 @@ try {
     { headers: { Origin: base, 'Content-Type': 'application/pdf' }, data: pdf },
   )
   assert.equal(pdfUpload.status(), 200)
+  const pdfDownload = await context.request.get(
+    `${base}/api/media/proofs/${secondary.id}`,
+  )
+  assert.equal(pdfDownload.status(), 200)
+  assert.equal(
+    pdfDownload.headers()['content-disposition'],
+    'attachment; filename="receipt.pdf"',
+  )
+  assert.equal(pdfDownload.headers()['cache-control'], 'private, no-store')
+  assert.deepEqual(await pdfDownload.body(), pdf)
   let amountDenied = false
   try {
     await rpc(purchaseModule, 'createReservation', {
@@ -374,6 +461,10 @@ try {
     { maxRedirects: 0 },
   )
   assert.ok([403, 404].includes(denied.status()))
+  const forged = await context.request.get(
+    `${base}/api/media/proofs/${original.id}?signature=fake&expires=9999999999999`,
+  )
+  assert.ok([403, 404].includes(forged.status()))
   let ownDenied = false
   try {
     await rpc(purchaseModule, 'ownPurchase', { id: original.id })
@@ -388,7 +479,7 @@ try {
     null,
   )
   console.log(
-    'PASS real proof upload, signed private HTTP read, cross-owner proof/order denial',
+    'PASS real proof upload, direct private attachment download, cross-owner proof/order denial',
   )
   stage = 'admin paid transition and immutable snapshot'
   await context.clearCookies()
@@ -458,13 +549,13 @@ try {
   const publicDraw = await rpc(raffleModule, 'publicDraw', { id: raffle.id })
   assert.ok(!JSON.stringify(publicDraw).includes('@'))
   console.log('PASS actual crypto draw, repeat result and public no-email DTO')
-  stage = 'fixture actual outbox delivery into captured mail'
+  stage = 'actual outbox rejects unverified recipient claims'
   const delivery = await (await helper('pump', 'POST')).json()
-  assert.equal(delivery.sent, 3)
-  assert.equal(delivery.retry, 0)
-  assert.equal((await (await helper('pump', 'POST')).json()).sent, 0)
+  assert.equal(delivery.sent, 0)
+  assert.equal(delivery.retry, 3)
+  assert.equal((await (await helper('counts')).json()).messages, 0)
   console.log(
-    'PASS actual outbox prepare/worker sends only captured mail and drains once',
+    'PASS actual outbox retains audited events, retries three unverified recipients, zero mail',
   )
   stage = 'dashboard navigation and 14-day chart'
   await page.goto(base + '/dashboard')
@@ -654,13 +745,7 @@ try {
 
   // Leave only the scenario under test active, not the admin's background queries.
   await page.goto('about:blank')
-  stage = 'native same-cart callback rate-limit window'
-  // Earlier four requests/five verifications include replay. Respect the native
-  // verification limit rather than disabling it for a sixth verification.
-  console.log('CHECK A respecting native verification window (61s)')
-  await delay(61000)
-  console.log('CHECK A native verification window elapsed')
-  stage = 'new anonymous context same-cart native magic-link UI'
+  stage = 'new anonymous context same-cart native password UI'
   const cartContext = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
   })
@@ -668,21 +753,21 @@ try {
     const url = new URL(route.request().url())
     if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))
       return route.abort()
-    return route.continue()
+    return route.continue({
+      headers: { ...route.request().headers(), 'x-forwarded-for': '127.0.0.1' },
+    })
   })
   const cartPage = await cartContext.newPage()
   await cartPage.bringToFront()
   cartPage.setDefaultNavigationTimeout(60000)
-  cartPage.on('pageerror', () => {
-    pageErrors++
-  })
+  cartPage.on('pageerror', recordPageError)
   cartPage.on('console', (message: { text: () => string }) => {
     if (/hydration|hydrated|did not match/i.test(message.text()))
       hydrationErrors++
   })
   assert.equal((await cartContext.cookies()).length, 0)
   let cartReservationPosts = 0
-  let cartMagicRequests = 0
+  let cartLoginRequests = 0
   cartPage.on(
     'request',
     (request: {
@@ -692,9 +777,9 @@ try {
     }) => {
       if (
         request.method() === 'POST' &&
-        request.url().includes('/api/auth/sign-in/magic-link')
+        request.url().includes('/api/auth/sign-in/email')
       )
-        cartMagicRequests++
+        cartLoginRequests++
       if (
         request.method() === 'POST' &&
         request.url().includes('_serverFn') &&
@@ -727,39 +812,38 @@ try {
   await cartPage
     .getByLabel('Correo electrónico', { exact: true })
     .fill('client@fixture.invalid')
-  const [cartMagicResponse] = await Promise.all([
-    cartPage.waitForResponse(
-      (response: { url: () => string }) =>
-        response.url().includes('/api/auth/sign-in/magic-link'),
-      { timeout: 60000 },
-    ),
-    cartPage
-      .getByRole('button', { name: 'Enviar enlace de acceso', exact: true })
-      .click({ noWaitAfter: true }),
-  ])
+  await cartPage.getByLabel('Contraseña', { exact: true }).fill(password)
+  const submitLogin = () =>
+    Promise.all([
+      cartPage.waitForResponse(
+        (response: { url: () => string }) =>
+          response.url().includes('/api/auth/sign-in/email'),
+        { timeout: 60000 },
+      ),
+      cartPage
+        .getByRole('button', { name: 'Iniciar sesión', exact: true })
+        .click({ noWaitAfter: true }),
+    ])
+  let [cartLoginResponse] = await submitLogin()
+  if (cartLoginResponse.status() === 429) {
+    console.log('CHECK A respecting native password rate-limit window (61s)')
+    await delay(61000)
+    ;[cartLoginResponse] = await submitLogin()
+  }
   assert.equal(
-    cartMagicResponse.status(),
+    cartLoginResponse.status(),
     200,
-    'same-cart native magic-link UI HTTP status',
+    'same-cart native password UI HTTP status',
   )
-  await cartPage
-    .getByRole('status')
-    .filter({ hasText: 'Revisa tu correo para continuar.' })
-    .waitFor()
-  assert.equal(cartMagicRequests, 1)
-  console.log('CHECK A native magic request delivered')
-  const cartMail = await (
-    await helper('mail?email=client%40fixture.invalid')
-  ).json()
-  assert.ok(cartMail.link, 'same-cart native delivery captured')
-  const verifyURL = new URL(cartMail.link)
+  // SDK navigation can discard the response body; the native Location header
+  // remains observable without delaying or mocking authentication.
   const callback = new URL(
-    verifyURL.searchParams.get('callbackURL') || '',
+    await cartLoginResponse.headerValue('location'),
     base,
   )
+  assert.equal(callback.pathname, '/auth/complete')
   assert.equal(callback.searchParams.get('checkout'), cartToken)
-  // Redeem in the very same context/tab that selected and persisted the cart.
-  await cartPage.goto(cartMail.link)
+  assert.ok(cartLoginRequests >= 1 && cartLoginRequests <= 2)
   await cartPage.waitForURL(`**/?checkout=${cartToken}#rifa/${uiId}`)
   await cartPage.waitForLoadState('networkidle')
   const cartSession = await (
@@ -767,6 +851,8 @@ try {
   ).json()
   assert.equal(cartSession.user.id, client.user.id)
   assert.equal(cartSession.user.role, 'client')
+  assert.equal(cartSession.user.emailVerified, false)
+  assert.equal((await (await helper('counts')).json()).messages, 0)
   assert.equal(
     await cartPage.locator('.ticket-number[aria-pressed="true"]').count(),
     1,
@@ -827,7 +913,73 @@ try {
   assert.equal(cartOrder.paymentInstructions.bank, 'Changed Fixture Bank')
   await cartContext.close()
   console.log(
-    'PASS A new anonymous same-cart login UI, native magic callback, restored intent/selection, zero auto POST and one explicit original reservation',
+    'PASS A new anonymous same-cart login UI, native password callback, restored intent/selection, zero auto POST and one explicit original reservation',
+  )
+  stage = 'private bootstrapped short credential native login UI'
+  const shortPassword = randomBytes(4).toString('hex')
+  assert.equal(
+    (await fetch(base + '/__fixture/bootstrap-admin', { method: 'POST' }))
+      .status,
+    404,
+  )
+  assert.equal(
+    (
+      await fetch(base + '/__fixture/bootstrap-admin', {
+        method: 'POST',
+        headers: { 'x-fixture-key': key },
+        body: shortPassword,
+      })
+    ).status,
+    200,
+  )
+  const shortContext = await browser.newContext()
+  await shortContext.route('**/*', async (route: any) => {
+    const url = new URL(route.request().url())
+    if (!['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))
+      return route.abort()
+    return route.continue({
+      headers: { ...route.request().headers(), 'x-forwarded-for': '127.0.0.1' },
+    })
+  })
+  const shortPage = await shortContext.newPage()
+  shortPage.on('pageerror', recordPageError)
+  await shortPage.goto(base + '/login')
+  await shortPage.waitForLoadState('networkidle')
+  await shortPage
+    .getByLabel('Correo electrónico', { exact: true })
+    .fill('dev-admin@fixture.invalid')
+  await shortPage.getByLabel('Contraseña', { exact: true }).fill(shortPassword)
+  const shortSubmit = () =>
+    Promise.all([
+      shortPage.waitForResponse((response: { url: () => string }) =>
+        response.url().includes('/api/auth/sign-in/email'),
+      ),
+      shortPage
+        .getByRole('button', { name: 'Iniciar sesión', exact: true })
+        .click({ noWaitAfter: true }),
+    ])
+  let [shortResponse] = await shortSubmit()
+  if (shortResponse.status() === 429) {
+    await delay(61000)
+    ;[shortResponse] = await shortSubmit()
+  }
+  assert.equal(shortResponse.status(), 200)
+  await shortPage.waitForURL(base + '/dashboard')
+  await shortPage.waitForLoadState('networkidle')
+  const shortSession = await (
+    await shortContext.request.get(base + '/api/auth/get-session')
+  ).json()
+  assert.equal(shortSession.user.role, 'admin')
+  assert.equal(shortSession.user.emailVerified, false)
+  assert.ok(
+    (await shortContext.cookies()).some((cookie: { name: string }) =>
+      cookie.name.includes('session_token'),
+    ),
+  )
+  assert.equal((await (await helper('counts')).json()).messages, 0)
+  await shortContext.close()
+  console.log(
+    'PASS private short stored credential through native login UI, fresh admin session and dashboard',
   )
   stage = 'desktop/mobile overflow'
   for (const width of [1440, 390]) {

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { eq, and, gt } from 'drizzle-orm'
 import { db } from '../../../db'
 import { storageConfig } from '../../../config/storage'
-import { createStorage } from '../../../lib/storage/s3'
+import { createStorage } from '../../../lib/storage/supabase'
 import { mediaAssets, uploadLeases } from '../../../lib/storage/db'
 import { claimOrphan, markDeleted } from '../../../lib/storage/assets'
 import {

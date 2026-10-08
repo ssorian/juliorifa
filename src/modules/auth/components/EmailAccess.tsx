@@ -13,76 +13,151 @@ export function EmailAccess({
 }) {
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmation, setConfirmation] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState(
-    error ? 'El enlace no es válido o ha caducado. Solicita otro.' : '',
+    error ? 'No pudimos completar el acceso. Intenta de nuevo.' : '',
   )
   const suffix = safeCheckoutId(checkout) ? `?checkout=${checkout}` : ''
   return (
-    <main className="mx-auto max-w-md p-8">
-      <a href="/">← Catálogo público</a>
-      <h1>{signup ? 'Crear cuenta cliente' : 'Iniciar sesión'}</h1>
-      <p>
-        Sin contraseña. Recibirás un enlace de un solo uso válido por 5 minutos.
-        Si tu correo es nuevo, al verificarlo se crea automáticamente una cuenta
-        cliente.
-      </p>
-      <form
-        onSubmit={async (event) => {
-          event.preventDefault()
-          if (busy) return
-          setBusy(true)
-          try {
-            const result = await authClient.signIn.magicLink({
-              email: email.trim(),
-              ...(signup && name.trim() ? { name: name.trim() } : {}),
-              callbackURL: completionPath(checkout),
-              newUserCallbackURL: completionPath(checkout),
-              errorCallbackURL: '/login?error=link',
-            })
-            setMessage(
-              result.error
-                ? 'No pudimos enviar el enlace. Intenta más tarde.'
-                : 'Revisa tu correo para continuar. Puedes abrir el enlace en otra pestaña de este navegador.',
-            )
-          } catch {
-            setMessage('No pudimos enviar el enlace. Intenta más tarde.')
-          } finally {
-            setBusy(false)
-          }
-        }}
-      >
-        {signup && (
-          <label>
-            Nombre (opcional)
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={100}
-              autoComplete="name"
-            />
-          </label>
-        )}
-        <label>
-          Correo electrónico
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            maxLength={254}
-            autoComplete="email"
-          />
-        </label>
-        <button type="submit" disabled={busy}>
-          {busy ? 'Enviando…' : 'Enviar enlace de acceso'}
-        </button>
-      </form>
-      <p role="status">{message}</p>
-      <a href={`${signup ? '/login' : '/signin'}${suffix}`}>
-        {signup ? 'Ya tengo cuenta' : 'Registrarme como cliente'}
-      </a>
-      <p>Demo local: no realizamos cobros ni reservas.</p>
+    <main className="nova-auth">
+      <div className="nova-auth-shell">
+        <header className="nova-auth-header">
+          <a
+            className="nova-auth-brand"
+            href="/"
+            aria-label="NOVA Rifas · Catálogo público"
+          >
+            <span className="nova-auth-symbol" aria-hidden="true">
+              N
+            </span>
+            <span>
+              NOVA<small>RIFAS</small>
+            </span>
+          </a>
+          <a className="nova-auth-back" href="/">
+            ← Catálogo público
+          </a>
+        </header>
+        <section className="nova-auth-card" aria-labelledby="nova-auth-title">
+          <p className="nova-auth-eyebrow">// ACCESS</p>
+          <h1 id="nova-auth-title">
+            {signup ? 'Crear cuenta cliente' : 'Iniciar sesión'}
+          </h1>
+          <p>
+            {signup
+              ? 'Crea una cuenta cliente con contraseña de 12 a 128 caracteres; el registro no verifica la propiedad del correo.'
+              : 'Accede con tu correo y contraseña actual.'}
+          </p>
+          <form
+            onSubmit={async (event) => {
+              event.preventDefault()
+              if (busy) return
+              if (signup && password !== confirmation) {
+                setMessage('Las contraseñas deben coincidir.')
+                return
+              }
+              setBusy(true)
+              try {
+                const credentials = {
+                  email: email.trim(),
+                  password,
+                  callbackURL: completionPath(checkout),
+                }
+                const result = signup
+                  ? await authClient.signUp.email({
+                      ...credentials,
+                      name: name.trim(),
+                    })
+                  : await authClient.signIn.email(credentials)
+                if (result.error) {
+                  setMessage(
+                    'No pudimos completar el acceso. Revisa los datos o intenta más tarde.',
+                  )
+                } else {
+                  window.location.assign(completionPath(checkout))
+                }
+              } catch {
+                setMessage('No pudimos completar el acceso. Intenta más tarde.')
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            {signup && (
+              <label>
+                Nombre
+                <input
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={100}
+                  autoComplete="name"
+                />
+              </label>
+            )}
+            <label>
+              Correo electrónico
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                maxLength={254}
+                autoComplete="email"
+              />
+            </label>
+            <label>
+              Contraseña
+              <input
+                type="password"
+                required
+                minLength={signup ? 12 : 1}
+                maxLength={128}
+                autoComplete={signup ? 'new-password' : 'current-password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            {signup && (
+              <label>
+                Confirmar contraseña
+                <input
+                  type="password"
+                  required
+                  minLength={12}
+                  maxLength={128}
+                  autoComplete="new-password"
+                  value={confirmation}
+                  onChange={(e) => setConfirmation(e.target.value)}
+                />
+              </label>
+            )}
+            <button type="submit" disabled={busy}>
+              {busy
+                ? 'Accediendo…'
+                : signup
+                  ? 'Crear cuenta'
+                  : 'Iniciar sesión'}
+            </button>
+          </form>
+          <p className="nova-auth-status" role="status" aria-live="polite">
+            {message}
+          </p>
+          <a
+            className="nova-auth-alternate"
+            href={`${signup ? '/login' : '/signin'}${suffix}`}
+          >
+            {signup ? 'Ya tengo cuenta' : 'Registrarme como cliente'}
+          </a>
+          <p className="nova-auth-note">
+            La recuperación de contraseña y la verificación por correo no están
+            disponibles.
+          </p>
+        </section>
+        <footer className="nova-auth-footer">NOVA / ACCESO CLIENTE</footer>
+      </div>
     </main>
   )
 }

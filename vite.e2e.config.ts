@@ -7,11 +7,9 @@ Object.assign(process.env, {
   BETTER_AUTH_URL: 'http://127.0.0.1:3212',
   SERVER_URL: 'http://127.0.0.1:3212',
   BETTER_AUTH_SECRET: randomBytes(48).toString('hex'),
-  S3_ENDPOINT: 'http://127.0.0.1:9',
-  S3_REGION: 'fixture',
-  S3_BUCKET: 'fixture',
-  S3_ACCESS_KEY_ID: 'fixture',
-  S3_SECRET_ACCESS_KEY: 'fixture',
+  SUPABASE_URL: 'http://127.0.0.1:9',
+  SUPABASE_STORAGE_BUCKET: 'fixture',
+  SUPABASE_SECRET_KEY: 'fixture-invalid',
   NITRO_DEV_RUNNER: 'self',
   RESEND_API_KEY: 'fixture-invalid',
   EMAIL_FROM: 'fixture@fixture.invalid',
@@ -37,7 +35,7 @@ const replacements = new Map([
     resolve(root, 'tests/e2e/email.ts'),
   ],
   [
-    resolve(root, 'src/lib/storage/s3.ts'),
+    resolve(root, 'src/lib/storage/supabase.ts'),
     resolve(root, 'tests/e2e/storage.ts'),
   ],
 ])
@@ -106,15 +104,6 @@ const fixture: Plugin = {
         res.setHeader('Content-Type', 'application/json')
         if (url.pathname === '/__fixture/ready')
           return res.end(JSON.stringify({ ready: true }))
-        if (url.pathname === '/__fixture/mail') {
-          const message = [...state.messages]
-            .reverse()
-            .find((m: { to: string }) => m.to === url.searchParams.get('email'))
-          const link = message?.text.match(
-            /http:\/\/127\.0\.0\.1:3212\/[^\s]+/,
-          )?.[0]
-          return res.end(JSON.stringify({ link }))
-        }
         if (url.pathname === '/__fixture/pump' && req.method === 'POST') {
           const load = (
             globalThis as typeof globalThis & {
@@ -127,17 +116,75 @@ const fixture: Plugin = {
           const { pump } = await load('ssr', '/tests/e2e/pump.ts')
           return res.end(JSON.stringify(await pump()))
         }
+        if (
+          url.pathname === '/__fixture/bootstrap-admin' &&
+          req.method === 'POST'
+        ) {
+          if (process.env.NODE_ENV === 'production')
+            throw new Error('Fixture only')
+          const chunks: Buffer[] = []
+          let size = 0
+          for await (const chunk of req) {
+            size += Buffer.byteLength(chunk)
+            if (size > 400) {
+              res.statusCode = 413
+              return res.end()
+            }
+            chunks.push(Buffer.from(chunk))
+          }
+          const password = Buffer.concat(chunks).toString('utf8')
+          if (!/^[a-f0-9]{8}$/.test(password)) {
+            res.statusCode = 400
+            return res.end()
+          }
+          const { hashPassword } = await import('better-auth/crypto')
+          const hash = await hashPassword(password)
+          const id = randomBytes(16).toString('hex')
+          await state.pg.transaction(async (tx) => {
+            await tx.query(
+              'INSERT INTO "user" (id, name, email, role) VALUES ($1, $2, $3, $4)',
+              [id, 'Fixture Admin', 'dev-admin@fixture.invalid', 'admin'],
+            )
+            await tx.query(
+              'INSERT INTO account (id, account_id, provider_id, user_id, password) VALUES ($1, $2, $3, $4, $5)',
+              [randomBytes(16).toString('hex'), id, 'credential', id, hash],
+            )
+          })
+          return res.end(JSON.stringify({ ok: true }))
+        }
         if (url.pathname === '/__fixture/counts') {
-          const result = await state.pg.query(
+          const result = await state.pg.query<{
+            purchases: number
+            outbox: number
+          }>(
             'SELECT (SELECT count(*) FROM purchases)::int AS purchases, (SELECT count(*) FROM notification_outbox)::int AS outbox',
           )
-          return res.end(JSON.stringify(result.rows[0]))
+          return res.end(
+            JSON.stringify({
+              ...result.rows[0],
+              messages: state.messages.length,
+            }),
+          )
         }
         if (url.pathname === '/__fixture/promote' && req.method === 'POST') {
-          await state.pg.query(
-            'UPDATE "user" SET role = $1, "email_verified" = true WHERE email = $2',
-            ['admin', 'admin@fixture.invalid'],
+          const load = (
+            globalThis as typeof globalThis & {
+              __VITE_ENVIRONMENT_RUNNER_IMPORT__: (
+                environment: string,
+                id: string,
+              ) => Promise<{
+                promoteExistingAdmin: (
+                  email: string,
+                  confirmed: boolean,
+                ) => Promise<void>
+              }>
+            }
+          ).__VITE_ENVIRONMENT_RUNNER_IMPORT__
+          const { promoteExistingAdmin } = await load(
+            'ssr',
+            '/src/modules/auth/services/promote-admin.ts',
           )
+          await promoteExistingAdmin('admin@fixture.invalid', true)
           return res.end(JSON.stringify({ ok: true }))
         }
         res.statusCode = 404

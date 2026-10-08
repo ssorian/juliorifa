@@ -2,7 +2,7 @@ import '@tanstack/react-start/server-only'
 import { createHash } from 'node:crypto'
 import sharp from 'sharp'
 import { DomainError } from '../../modules/purchases/domain'
-import type { AssetKind } from './s3'
+import type { AssetKind } from './supabase'
 
 export const limits = {
   image: 2 * 1024 * 1024,

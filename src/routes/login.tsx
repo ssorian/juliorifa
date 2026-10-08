@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import '../modules/auth/auth.css'
 import { EmailAccess } from '../modules/auth/components/EmailAccess'
 import { safeCheckoutId } from '../modules/auth/lib/policy'
 

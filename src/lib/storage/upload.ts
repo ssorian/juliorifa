@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 import { DomainError } from '../../modules/purchases/domain'
-import type { ObjectStorage } from './s3'
+import type { ObjectStorage } from './supabase'
 
 export interface UploadLifecycle {
   assertLease?: () => Promise<void>

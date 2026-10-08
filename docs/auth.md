@@ -1,42 +1,53 @@
-# Acceso por correo
+# Acceso por correo y contraseña
 
-## Alcance
+## Modo actual
 
-Better Auth + Postgres/Drizzle autentican clientes y administradores. Catálogo y selección son públicos; continuar la simulación requiere sesión. Rifas, disponibilidad y compras siguen siendo **demo local**, sin cobros ni reservas ni backend de pagos.
+Better Auth **1.7.7**, Postgres/Drizzle y cookies nativas autentican clientes y administradores. No se usa Supabase Auth. El SDK Supabase sigue siendo exclusivamente Storage.
 
-- `/login`: acceso sin contraseña; un correo nuevo también crea cliente al verificar.
-- `/signin`: registro cliente por enlace mágico, nombre opcional, sin entrada de rol.
-- `/auth/complete`: consulta sesión y rol actual en servidor. Admin siempre va a `/dashboard`; cliente recupera intención de compra válida o vuelve al catálogo.
-- `/dashboard/`: `beforeLoad` consulta servidor antes de renderizar, también en SSR. Cliente y visitante no reciben el HTML del dashboard.
+- `/login`: correo + contraseña de una cuenta existente; nunca registra automáticamente al fallar.
+- `/signin`: registro cliente con nombre obligatorio y confirmación de contraseña. Better Auth inicia sesión automáticamente.
+- Contraseña nueva de registro requerida de **12 a 128 caracteres**, hash scrypt nativo en `account` con `providerId=credential`. Sin hash manual, nuevas tablas, dependencias ni migraciones.
+- **El registro no prueba propiedad del correo**: `emailVerified=false`. Una cuenta es un claim de identidad, no un correo verificado.
+- `/auth/complete` consulta sesión y rol actual en servidor: admin → `/dashboard`; cliente → catálogo con checkout válido. Rol público ignorado (`input:false`, hook client y constraint DB). Cache de cookie deshabilitada.
 
-## Configuración servidor
+## Configuración y límites
 
-Configura fuera del código: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (URL oficial existente; `SERVER_URL` es fallback compatible), `RESEND_API_KEY`, `EMAIL_FROM` (remitente verificado y fijo). No uses prefijo `VITE_`. No compartir valores ni imprimir enlaces/tokens. El entorno local comunicado ya contiene los tres primeros nombres; **faltan RESEND_API_KEY y EMAIL_FROM**. Su ausencia no bloquea el build, pero el envío falla explícitamente, sin log de enlace ni envío simulado.
+Servidor: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (fallback `SERVER_URL`). Sin prefijo `VITE_`, valores en código, contraseñas en URL/localStorage/logs ni secretos compartidos en chat. Producción requiere HTTPS y un secreto robusto.
 
-Usa la URL y puerto reales de la app en `BETTER_AUTH_URL`. En producción requiere HTTPS, secreto robusto y remitente verificado. El transporte Resend es compartido en `src/lib/email`; futuras notificaciones de ganador quedan fuera de alcance.
+**Login/registro no dependen de Resend ni envían correo.** No se configuraron emails de verificación o recuperación; recuperar contraseña/verificar correo no están disponibles. No hay workaround público de reset. Las cuentas históricas magic-link-only, sin credencial password, necesitan recuperación futura por operador confiable fuera de banda, con prueba legítima de identidad y autorización separada. Un registro duplicado no convierte ni reemplaza esas cuentas ni sus credenciales.
 
-## Migraciones: revisión antes de ejecutar
+Rate limiter nativo activo, memoria por instancia, cinco requests por 60 segundos para cada endpoint `/sign-in/email` y `/sign-up/email`, también en desarrollo. Con múltiples instancias requiere almacenamiento compartido y configuración IP/proxy confiable. No se desactiva para pruebas: el harness espera 61 segundos al recibir 429 antes de un login legítimo. Better Auth conserva cookies y controles de origen.
 
-`npx drizzle-kit generate` genera SQL offline; **no se aplicó ninguna migración**. La migración inicial `drizzle/0000_bitter_cassandra_nova.sql` incluye las cuatro tablas auth y la tabla preexistente en código `todos`. No borra tablas.
-
-**No ejecutes `db:migrate` a ciegas**: si la base ya tiene `todos` y no tiene journal Drizzle, su `CREATE TABLE todos` colisionará. Un operador debe revisar el SQL y reconciliar una baseline con el estado real de la base y su journal, preservando todos los datos. Esto requiere autorización independiente y acceso DB: no está validado aquí. No usar `db:push` ni eliminar tablas para resolverlo. En una base nueva vacía, después de revisar y autorizar, el comando de aplicación es `npm run db:migrate`.
+Callbacks de ambas APIs se normalizan a `/auth/complete`, conservando únicamente checkout de 32 hex minúsculas. No aceptan destinos externos/arbitrarios ni permiten elegir rol. La UI realiza una sola navegación completa por ese gate; el redirect automático del SDK se deshabilita para evitar carreras con `location.assign`, no se deshabilitan sesiones ni cookies.
 
 ## Administrador privado
 
-Primero la cuenta debe existir y tener correo verificado. Un operador autorizado puede ejecutar:
+Primero registra la cuenta mediante `/signin`. Luego un operador autorizado, con DB preparada y autorización explícita, puede ejecutar:
 
 ```sh
 node --import tsx scripts/promote-admin.ts --email existing@example.com --confirm-promote
 ```
 
-No se ejecutó este comando. Requiere configuración servidor y migración aplicada. No crea usuarios ni promueve el primer registro; no existe endpoint público para promoción. El campo `role` tiene default DB `client`, constraint de valores, `input: false` y hook que fuerza `client` en creación. La autorización vuelve a consultar el rol DB sin cache de cookie, de modo que una revocación no conserva privilegios en SSR.
+**No se ejecutó el CLI.** Exige usuario existente y cuenta `credential` con password almacenado no vacío, además de confirmación. No crea usuarios, cambia contraseñas ni marca correo verificado; no existe endpoint público de promoción. Una cuenta magic-link-only no cumple el requisito. El rol se consulta fresco en servidor, también tras revocación. La cuenta administrativa proporcionada ya fue creada mediante la operación privada autorizada de desarrollo descrita abajo, no mediante este CLI. No solicitar contraseñas en chat ni argumentos CLI.
 
-## Enlace y selección
+### Compatibilidad del bootstrap de desarrollo
 
-Tokens hasheados, duración 5 minutos, límite 5 solicitudes/verificaciones por 60 segundos, activado también en desarrollo. El limitador es en memoria por instancia (demo local); un despliegue de múltiples instancias necesitaría almacenamiento compartido y configuración confiable de IP/proxy. La versión instalada consume verificaciones atómicamente en el primer uso; no usar `allowedAttempts` para reintentos. Better Auth conserva comprobaciones de origen y cookies en `/api/auth/$`. Los callbacks de su API se normalizan a `/auth/complete`, con identificador opaco de 32 caracteres hexadecimales; no aceptan destinos externos. Los fallos de envío o verificación son genéricos, sin revelar existencia de cuenta.
+Login acepta una contraseña existente de 1 a 128 caracteres; no asigna una nueva contraseña ni aplica el mínimo del registro. Un bootstrap privado de desarrollo autorizado puede almacenar una credencial corta con scrypt nativo de Better Auth, conservando `emailVerified=false`. Registro público y confirmación siguen en 12–128. No hay API pública ni CLI nuevo permanente de bootstrap. La operación privada puntual ya creó `user`/`account` en una transacción SQL, con rol `admin` y `emailVerified=false`: `hashPassword`/`verifyPassword` nativos de Better Auth 1.7.7 verificaron la credencial almacenada antes del COMMIT. Contraseña recibida por STDIN, sin sesiones insertadas ni autenticación simulada; rechaza una credencial existente diferente sin sobrescribirla.
 
-La selección se guarda sin PII en localStorage, con TTL de 30 minutos y máximo 1000 números. El identificador viaja en el callback, permite otra pestaña del mismo navegador/origen, y al volver se filtran números por disponibilidad/rango demo y estado activo. No es reserva ni autoridad de rol. En otro dispositivo, origen diferente o almacenamiento bloqueado no se puede recuperar la selección. Un enlace reenviado también da acceso a la cuenta: trátalo como credencial.
+La fixture aislada prueba una credencial generada de ocho caracteres mediante formulario, cookie nativa, sesión admin fresca y dashboard. No usa datos reales ni marca el correo verificado.
 
-## Validación pendiente
+## Checkout y notificaciones
 
-Tests unitarios usan stubs, sin DB ni tráfico Resend. Con el dev server local autorizado activo en puerto 3210, `node --import tsx src/modules/auth/lib/ssr-smoke.ts` comprueba formularios públicos y que visitantes sin cookies sean redirigidos sin HTML dashboard (sigue redirects canónicos solo en el mismo origen). La verificación independiente pasó 14/14 tests, TypeScript, smoke SSR y navegador: formularios públicos, dashboard anónimo → login sin HTML administrativo, selección → acceso obligatorio y recuperación de los mismos boletos en una segunda pestaña. No reprodujo hallazgos P1/P2 en el alcance revisado. Quedan pendientes tras autorización/configuración: migración real, entrega de correo, enlace completo con cookies cliente/admin, expiración/replay en Postgres y auditoría del bundle de producción. No afirmar integración end-to-end validada ni compra real.
+Selección sin PII en localStorage, TTL 30 minutos, máximo 1000 números, checkout opaco 32hex. Login/registro y sus enlaces alternativos conservan esa intención. Volver revalida selección/disponibilidad: **cero reservas automáticas**, confirmación explícita antes del POST idempotente. Otro origen/dispositivo o almacenamiento bloqueado no conserva el carrito.
+
+Outbox, auditoría, transporte Resend y guard de destinatario verificado siguen intactos. Los eventos de aprobación/rechazo/sorteo permanecen atómicos, pero usuarios password no verificados **no reciben notificaciones**, incluso con Resend configurado: pasan por retry y pueden terminar en deadletter al agotarse intentos. No equivale a una cola eterna ni a entrega prometida. Verificación legítima, configuración de `RESEND_API_KEY`/`EMAIL_FROM` y operación de jobs requieren trabajo/autorización separados.
+
+## Infraestructura y evidencia
+
+**Desarrollo, cierre autorizado:** tras comprobar esquemas `public`/`drizzle` vacíos bajo advisory lock y fijar `search_path=public`, se aplicaron 0000–0004: cinco migraciones registradas y 17 tablas en `public` confirmadas. La operación puntual rechazó producción y exigió `--development`/`--confirm`, con advisory transaction lock; configuración de entorno intacta y sin tocar otros esquemas. La cuenta administrativa proporcionada puede iniciar sesión; no se comprobó login HTTP/cookies contra esta DB real, solo verificación nativa del hash almacenado y UI aislada.
+
+**Histórico:** las migraciones se generaron offline y no se aplicaron durante las fases anteriores. **Producción:** DDL y bootstrap siguen sujetos a revisión y autorización separadas; reconciliar baseline auth/`todos` y journal, nunca `db:push`, borrados ni migración ciega. Storage, correo y jobs reales siguen sin validar/activar.
+
+Validación actual: **102/102 tests**, **20/20 checkpoints HTTP/browser** con Better Auth/Drizzle/guards nativos y PGlite en memoria. Signup client ignora rol; sesiones no verificadas; password incorrecto 401 sin sesión; passwords débiles/excesivos y duplicados rechazados sin reemplazar credencial; promoción privada fixture y rol fresco. Nuevo contexto sin cookies → carrito 0 → login UI password → mismo checkout/selección, cero POST automático y exactamente una reserva al confirmar. Lost POST commit+abort se recupera por GET sin replay; proof privado HTTP 200, editor, revisión, sorteo, responsive/logout y cero pageerror/hydration conservados. Outbox real: 0 sent, 3 retry, 0 correos capturados. No prueba proveedores, despliegue ni carreras PostgreSQL multiconexión.
+
+Los informes anteriores de enlaces mágicos y sus conteos son **históricos**, no describen el modo Auth actual. Ver [tarea Auth](tasks/auth.md) para RED y límites de validación.

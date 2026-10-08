@@ -16,7 +16,7 @@ test('fixture applies all checked-in SQL only to the memory database', async () 
   )
   assert.equal(result.rows[0].count, 0)
 })
-test('fixture dedupes keyed outbox delivery, not native magic-link requests', async () => {
+test('notification capture dedupes keyed outbox delivery, not unkeyed messages', async () => {
   const message = {
     to: 'fixture@fixture.invalid',
     subject: 'Fixture',
@@ -29,12 +29,22 @@ test('fixture dedupes keyed outbox delivery, not native magic-link requests', as
   await sendEmail(message)
   assert.equal(state.messages.length - before, 3)
 })
-test('memory object signed URLs have bounded TTL, authenticate all parameters and preserve bytes', async () => {
+test('fixture image URLs authenticate all parameters; proofs download bytes without bearer URLs', async () => {
   const storage = createStorage({} as StorageConfig)
-  const key = 'proofs/12345678-1234-4123-8123-123456789abc'
+  const proofKey = 'proofs/12345678-1234-4123-8123-123456789abc'
+  const key = 'images/12345678-1234-4123-8123-123456789abc'
   const bytes = Buffer.from('%PDF-1.4\n%%EOF\n')
   await storage.put(key, bytes, 'application/pdf')
-  const url = new URL(await storage.url(key, 'proof', 'application/pdf'))
+  await storage.put(proofKey, bytes, 'application/pdf')
+  assert.deepEqual(
+    (await storage.download(proofKey, 'application/pdf', bytes.length)).bytes,
+    bytes,
+  )
+  await assert.rejects(
+    storage.url(proofKey, 'proof', 'application/pdf'),
+    /INVALID_ASSET/,
+  )
+  const url = new URL(await storage.url(key, 'image', 'application/pdf'))
   assert.equal(url.origin, 'http://127.0.0.1:3212')
   const expires = Number(url.searchParams.get('expires'))
   assert.ok(expires > Date.now() && expires <= Date.now() + 60000)

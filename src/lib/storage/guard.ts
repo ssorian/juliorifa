@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 import { DomainError } from '../../modules/purchases/domain'
-import type { AssetKind } from './s3'
+import type { AssetKind } from './supabase'
 
 export interface UploadLease {
   kind: AssetKind

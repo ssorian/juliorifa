@@ -60,6 +60,33 @@ export async function uploadResponse(
     return errorResponse(error)
   }
 }
+export async function proofResponse(
+  id: string,
+  download: (id: string) => Promise<{ bytes: Buffer; mime: string }>,
+) {
+  try {
+    if (!z.uuid().safeParse(id).success) throw new DomainError('NOT_FOUND')
+    const { bytes, mime } = await download(id)
+    const extensions: Record<string, string> = {
+      'application/pdf': 'pdf',
+      'image/png': 'png',
+      'image/jpeg': 'jpg',
+      'image/webp': 'webp',
+    }
+    const extension = extensions[mime]
+    if (!extension) throw new DomainError('INVALID_ASSET')
+    return new Response(new Uint8Array(bytes), {
+      headers: {
+        ...privateHeaders,
+        'Content-Type': mime,
+        'Content-Length': String(bytes.length),
+        'Content-Disposition': `attachment; filename="receipt.${extension}"`,
+      },
+    })
+  } catch (error) {
+    return errorResponse(error)
+  }
+}
 export async function mediaResponse(
   id: string,
   url: (id: string) => Promise<string>,

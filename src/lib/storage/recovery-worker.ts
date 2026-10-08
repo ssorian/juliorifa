@@ -1,11 +1,11 @@
 import '@tanstack/react-start/server-only'
 import { DomainError } from '../../modules/purchases/domain'
-import type { ObjectStorage } from './s3'
+import type { ObjectStorage } from './supabase'
 import type { RecoveryRepository } from './recovery-repository'
 
 export async function recoverStorage(
   repo: RecoveryRepository,
-  storage: () => ObjectStorage,
+  storage: () => Pick<ObjectStorage, 'remove'>,
   batch = 10,
   clock = () => Date.now(),
 ) {

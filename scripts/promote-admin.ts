@@ -24,7 +24,7 @@ if (
     }
   } catch {
     console.error(
-      'Promotion failed: verify configuration and existing verified account.',
+      'Promotion failed: verify configuration and existing credential account.',
     )
     process.exitCode = 1
   }

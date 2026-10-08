@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../../db'
 import { storageConfig } from '../../config/storage'
-import { createStorage } from '../../lib/storage/s3'
+import { createStorage } from '../../lib/storage/supabase'
 import { mediaAssets } from '../../lib/storage/db'
 import { claimOrphan, markDeleted } from '../../lib/storage/assets'
 import {
@@ -120,7 +120,7 @@ export async function uploadProof(id: string, request: Request) {
     },
   )
 }
-export async function proofURL(id: string) {
+export async function proofDownload(id: string) {
   const actor = await requireUser()
   const rows = await db
     .select()
@@ -151,7 +151,11 @@ export async function proofURL(id: string) {
     order.proofReceivedAt >= order.expiresAt
   )
     throw new DomainError('NOT_FOUND')
-  return createStorage(storageConfig()).url(asset.key, 'proof', asset.mime)
+  return createStorage(storageConfig()).download(
+    asset.key,
+    asset.mime,
+    asset.sizeBytes,
+  )
 }
 export async function review(
   id: string,

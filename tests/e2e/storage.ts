@@ -20,7 +20,20 @@ export function createStorage(_config: StorageConfig) {
       assertObjectKey(key, key.startsWith('proofs/') ? 'proof' : 'image')
       state.objects.delete(key)
     },
+    async download(key: string, mime: string, size: number) {
+      assertObjectKey(key, 'proof')
+      const object = state.objects.get(key)
+      if (
+        !object ||
+        object.mime !== mime ||
+        object.bytes.length !== size ||
+        size > 10 * 1024 * 1024
+      )
+        throw new Error('STORAGE_UNAVAILABLE')
+      return { bytes: Buffer.from(object.bytes), mime }
+    },
     async url(key: string, kind: AssetKind, mime: string) {
+      if (kind !== 'image') throw new Error('INVALID_ASSET')
       assertObjectKey(key, kind)
       const query = new URLSearchParams({
         key,
