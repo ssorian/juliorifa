@@ -32,9 +32,23 @@ node --import tsx scripts/promote-admin.ts --email existing@example.com --confir
 
 ### Compatibilidad del bootstrap de desarrollo
 
-Login acepta una contraseña existente de 1 a 128 caracteres; no asigna una nueva contraseña ni aplica el mínimo del registro. Un bootstrap privado de desarrollo autorizado puede almacenar una credencial corta con scrypt nativo de Better Auth, conservando `emailVerified=false`. Registro público y confirmación siguen en 12–128. No hay API pública ni CLI nuevo permanente de bootstrap. La operación privada puntual ya creó `user`/`account` en una transacción SQL, con rol `admin` y `emailVerified=false`: `hashPassword`/`verifyPassword` nativos de Better Auth 1.7.7 verificaron la credencial almacenada antes del COMMIT. Contraseña recibida por STDIN, sin sesiones insertadas ni autenticación simulada; rechaza una credencial existente diferente sin sobrescribirla.
+Login acepta una contraseña existente de 1 a 128 caracteres; no asigna una nueva contraseña ni aplica el mínimo del registro. Un bootstrap privado de desarrollo autorizado puede almacenar una credencial corta con scrypt nativo de Better Auth, conservando `emailVerified=false`. Registro público y confirmación siguen en 12–128. No hay API pública de bootstrap; la seed cliente de desarrollo se describe abajo. La operación privada puntual ya creó `user`/`account` en una transacción SQL, con rol `admin` y `emailVerified=false`: `hashPassword`/`verifyPassword` nativos de Better Auth 1.7.7 verificaron la credencial almacenada antes del COMMIT. Contraseña recibida por STDIN, sin sesiones insertadas ni autenticación simulada; rechaza una credencial existente diferente sin sobrescribirla.
 
 La fixture aislada prueba una credencial generada de ocho caracteres mediante formulario, cookie nativa, sesión admin fresca y dashboard. No usa datos reales ni marca el correo verificado.
+
+## Seed cliente de desarrollo
+
+`npm run db:seed` muestra solamente el plan, sin cargar configuración ni DB.
+Para ejecutar explícitamente: `npm run db:seed -- --execute` (solo
+`NODE_ENV=development` o `test`; por defecto, development). Usa la DB existente
+configurada en servidor; no aplica migraciones ni envía correo.
+
+Crea `user@gmail.com` con la contraseña de fixture solicitada, hash nativo Better
+Auth, rol `client`, correo no verificado y cuenta `credential`. No crea sesiones:
+el acceso posterior usa el login normal. Repetir conserva una cuenta equivalente;
+un correo existente con otra contraseña, rol, verificación o proveedor falla sin
+cambiarlo. No sirve para recuperar ni convertir cuentas existentes. No se ejecutó
+contra DB real durante esta implementación.
 
 ## Checkout y notificaciones
 
