@@ -6,11 +6,13 @@ export function AdminDialog({
   onClose,
   busy,
   children,
+  className = '',
 }: {
   label: string
   onClose: () => void
   busy: boolean
   children: ReactNode
+  className?: string
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -21,7 +23,7 @@ export function AdminDialog({
   return (
     <dialog
       ref={ref}
-      className="panel react-dialog"
+      className={`panel react-dialog ${className}`}
       aria-label={label}
       onCancel={(event) => {
         event.preventDefault()

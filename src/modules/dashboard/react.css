@@ -42,7 +42,101 @@ body:has(.nova-admin dialog[open]) {
   max-width: 760px;
 }
 .nova-admin .react-dialog.raffle-editor {
-  max-width: 1100px;
+  width: min(1150px, calc(100vw - 32px));
+  max-width: 1150px;
+  padding: 0;
+  background: #100f1b;
+}
+.nova-admin .react-dialog.raffle-editor .dialog-header {
+  padding: 24px 28px;
+  margin: 0;
+}
+.nova-admin .raffle-editor > p {
+  padding: 0 28px;
+  overflow-wrap: anywhere;
+}
+.nova-admin .raffle-editor .feature-row input {
+  min-width: 0;
+  width: 100%;
+}
+.nova-admin .react-dialog.raffle-editor .feature-row button {
+  padding: 0;
+  min-width: 0;
+  width: 32px;
+}
+.nova-admin .raffle-editor .editor-preview {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.nova-admin .raffle-editor .dialog-header .small-eyebrow {
+  margin: 0 0 5px;
+}
+.nova-admin .raffle-editor .form-section h3 {
+  margin-top: 0;
+}
+.nova-admin .raffle-editor h4 {
+  font:
+    400 0.875rem Arial,
+    sans-serif;
+  color: #c8b7d5;
+  margin: 20px 0 9px;
+}
+.nova-admin .raffle-editor .field-row {
+  margin-top: 24px;
+}
+.nova-admin .raffle-editor .field-row h4 {
+  margin: 0;
+}
+.nova-admin .raffle-editor .preview-card > img {
+  margin: 0;
+}
+.nova-admin .raffle-editor .preview-card h3 {
+  margin-top: 14px;
+}
+.nova-admin .react-dialog.raffle-editor .image-library button.selected {
+  border: 2px solid #d77caa;
+}
+.nova-admin .raffle-editor .dialog-footer {
+  position: sticky;
+  bottom: 0;
+  background: #171120;
+  border-top: 1px solid #37263f;
+  justify-content: flex-end;
+}
+.nova-admin .raffle-editor .dialog-footer .button {
+  margin: 0;
+}
+.nova-admin .raffle-editor .preview-placeholder {
+  aspect-ratio: 3/2;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: #191323;
+}
+.nova-admin .raffle-editor .image-library {
+  flex-wrap: wrap;
+}
+.nova-admin .react-dialog.raffle-editor .image-library button {
+  padding: 0;
+}
+.nova-admin .raffle-editor .image-library div > button:last-child {
+  width: 28px;
+}
+@media (max-width: 800px) {
+  .nova-admin .raffle-editor .editor-layout {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+  .nova-admin .raffle-editor .editor-preview {
+    position: static;
+  }
+  .nova-admin .raffle-editor .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .nova-admin .react-dialog.raffle-editor .dialog-header {
+    padding: 20px;
+  }
 }
 .nova-admin .dialog-header {
   display: flex;

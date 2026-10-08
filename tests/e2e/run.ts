@@ -666,6 +666,34 @@ try {
     name: 'Editor de rifa',
     exact: true,
   })
+  assert.equal(
+    await editor
+      .getByLabel('Precio MXN por boleto', { exact: true })
+      .inputValue(),
+    '25.00',
+  )
+  assert.equal(
+    await editor
+      .getByLabel('Cantidad de boletos', { exact: true })
+      .inputValue(),
+    '10000',
+  )
+  assert.equal(
+    await editor
+      .getByLabel('Número inicial (0 permitido)', { exact: true })
+      .inputValue(),
+    '0',
+  )
+  assert.equal(await editor.locator('.image-library img').count(), 0)
+  assert.deepEqual(
+    await editor.locator('.form-section > h3').allTextContents(),
+    [
+      '01Producto y contenido',
+      '02Fecha y estado',
+      '03Configuración de boletos',
+      '04Costos de la rifa',
+    ],
+  )
   const uiTitle = 'Editor pipeline fixture'
   const civilDate = (days: number) =>
     new Date(Date.now() + days * 86400000 - 6 * 3600000)
@@ -673,13 +701,14 @@ try {
       .slice(0, 16)
   const deadline = civilDate(2)
   const drawDate = civilDate(3)
-  await editor.getByLabel('Título', { exact: true }).fill(uiTitle)
+  await editor.getByLabel('Nombre del producto', { exact: true }).fill(uiTitle)
   await editor
     .getByLabel('Descripción', { exact: true })
     .fill('Created exclusively through the original editor')
   await editor
     .getByLabel('Precio MXN por boleto', { exact: true })
     .fill('75.25')
+  await editor.getByText('Opcionales avanzados', { exact: true }).click()
   await editor
     .getByLabel('Fee bps (gasto administrativo; NO recargo)', { exact: true })
     .fill('250')
@@ -701,7 +730,7 @@ try {
     .getByLabel('Detalle 1', { exact: true })
     .fill('Original fixture detail')
   await editor
-    .getByRole('button', { name: 'Guardar en servidor', exact: true })
+    .getByRole('button', { name: 'Guardar rifa', exact: true })
     .click()
   await editor
     .getByText('Rifa guardada en servidor.', { exact: true })
@@ -724,9 +753,61 @@ try {
       mimeType: 'image/png',
       buffer: png,
     })
+  const realPreview = editor.locator('.preview-card > img')
+  await realPreview.waitFor()
+  const firstPreviewURL = await realPreview.getAttribute('src')
+  assert.ok(firstPreviewURL.startsWith('blob:'))
+  const imageInput = editor.getByLabel(
+    'Imágenes reales PNG/JPEG/WebP, máximo 2 MB cada una',
+    { exact: true },
+  )
+  await imageInput.setInputFiles({
+    name: 'invalid.svg',
+    mimeType: 'image/svg+xml',
+    buffer: Buffer.from('<svg/>'),
+  })
+  await editor
+    .getByText('Imagen inválida: PNG/JPEG/WebP de hasta 2 MB.', { exact: true })
+    .waitFor()
+  assert.equal(await editor.locator('.image-library img').count(), 1)
+  await imageInput.setInputFiles({
+    name: 'second-real.png',
+    mimeType: 'image/png',
+    buffer: png,
+  })
+  await editor
+    .getByRole('button', { name: 'Seleccionar second-real.png', exact: true })
+    .click()
+  assert.notEqual(await realPreview.getAttribute('src'), firstPreviewURL)
+  await editor
+    .getByRole('button', { name: 'Quitar second-real.png', exact: true })
+    .click()
+  await editor
+    .getByRole('button', {
+      name: 'Seleccionar editor-fixture.png',
+      exact: true,
+    })
+    .click()
+  assert.equal(await realPreview.getAttribute('src'), firstPreviewURL)
+  assert.equal(
+    (await rpc(raffleModule, 'adminRaffle', { id: uiId })).images.length,
+    0,
+  )
+  await editor.evaluate((dialog: HTMLDialogElement) => {
+    dialog.scrollTop = 0
+  })
+  await page.screenshot({ path: '/tmp/juliorifa-raffle-editor-desktop.png' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: '/tmp/juliorifa-raffle-editor-mobile.png' })
+  assert.ok(
+    await editor.evaluate(
+      (dialog: HTMLDialogElement) => dialog.scrollWidth <= dialog.clientWidth,
+    ),
+  )
+  await page.setViewportSize({ width: 1440, height: 1000 })
   await editor.locator('select').selectOption('active')
   await editor
-    .getByRole('button', { name: 'Guardar en servidor', exact: true })
+    .getByRole('button', { name: 'Guardar rifa', exact: true })
     .click()
   await editor
     .getByText('Rifa guardada en servidor.', { exact: true })
@@ -753,7 +834,9 @@ try {
   const editedTitle = 'Edited editor pipeline fixture'
   const editedDeadline = civilDate(4)
   const editedDraw = civilDate(5)
-  await editor.getByLabel('Título', { exact: true }).fill(editedTitle)
+  await editor
+    .getByLabel('Nombre del producto', { exact: true })
+    .fill(editedTitle)
   await editor
     .getByLabel('Característica 1', { exact: true })
     .fill('Edited specification')
@@ -765,7 +848,7 @@ try {
     .fill(editedDeadline)
   await editor.getByLabel('Fecha del sorteo', { exact: true }).fill(editedDraw)
   await editor
-    .getByRole('button', { name: 'Guardar en servidor', exact: true })
+    .getByRole('button', { name: 'Guardar rifa', exact: true })
     .click()
   await editor
     .getByText('Rifa guardada en servidor.', { exact: true })
