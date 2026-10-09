@@ -17,7 +17,7 @@ export type DrawDatabase = Pick<typeof db, 'transaction' | 'select'>
 export async function performDraw(
   database: DrawDatabase,
   id: string,
-  actorId: string,
+  actorId: string | null,
   clock = () => Date.now(),
   random: (max: number) => number = randomInt,
 ) {
@@ -94,6 +94,7 @@ export async function performDraw(
         winnerTicket: selection.winner.ticketNumber,
         winnerOrderId: selection.winner.orderId,
         actorId,
+        source: actorId === null ? 'automatic' : 'manual',
         createdAt: now,
       })
       .returning()
@@ -106,7 +107,10 @@ export async function performDraw(
       orderId: selection.winner.orderId,
       actorId,
       type: 'winner',
-      reason: 'crypto-randomInt-v1',
+      reason:
+        actorId === null
+          ? 'automatic:crypto-randomInt-v1'
+          : 'crypto-randomInt-v1',
       createdAt: now,
     })
     return { draw }

@@ -31,7 +31,7 @@ test('public password controls enforce length and correct autocomplete without r
       assert.equal((html.match(/minLength="12"/g) || []).length, 2)
       assert.match(html, /12 a 128 caracteres/)
     } else {
-      assert.doesNotMatch(html, /minLength="12"|12 a 128 caracteres/)
+      assert.doesNotMatch(html, /minLength="12"|12 a 128 caracteres|type="tel"/)
     }
     assert.match(html, /maxLength="128"/)
     assert.match(
@@ -46,6 +46,8 @@ test('public password controls enforce length and correct autocomplete without r
     if (signup) {
       assert.match(html, /autoComplete="name"/)
       assert.match(html, /Confirmar contraseña/)
+      assert.match(html, /type="tel" required=""/)
+      assert.match(html, /autoComplete="tel"/)
     }
   }
 })

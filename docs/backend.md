@@ -1,5 +1,37 @@
 # Backend de rifas: bloques 1–4
 
+## Apartado inmediato, contacto y sorteo diario — tarea 23
+
+**Cierre independiente: PASS del alcance solicitado.** 110/110 pruebas, 25 checkpoints de navegador con caché fría y cero errores de página/hidratación; logout, tipos y build correctos. Los tres P2 están corregidos, sin nuevos hallazgos de esta feature. Imágenes dev y activación real siguen separadas, como se detalla abajo.
+
+**Writerfix:** contacto manual teléfono/wa.me también en solicitudes administrativas reviewing, antes de sortear; legacy no disponible, requireAdmin fresco y own/public sin nuevo contacto. Fixture seed aplica SQL actuales. FULL110/110, TypeScript/build PASS; cold E2E independientes2/3/4:25 checkpoints, exit0, pageErrors0/hydration0/logout PASS. Los FAIL anteriores descritos abajo son históricos y quedan superados. Cold startup usa preoptimización explícita/noDiscovery/readiness cliente con caché PID aislada. Logs `/tmp/juliorifa-writerfix-full-suite-final.log`, `/tmp/juliorifa-writerfix-cold{2,3,4}.log`, `/tmp/juliorifa-writerfix-build.log`.
+
+404 imagen dev no silenciado: mismo recurso subido responde200 con Accept genérico,404 con headers navegador imagen (18 fallos UI por corrida); objeto presente, comportamiento dependiente de headers en dev, pendiente diagnóstico definitivo y corrección en seguimiento separado. No afecta los asserts nuevos contacto/cron ni demuestra imágenes browser correctas. No se cambió producción para ocultarlo. Detalles y RED/GREEN en [tasks/backend.md](tasks/backend.md).
+
+Tras confirmar explícitamente un apartado autenticado, el diálogo permanece abierto y reutiliza PurchaseDetail: importe e instrucciones snapshot del servidor, referencia/cuenta copiable, plazo, comprobante privado e historial. Mis apartados continúa disponible por enlace y header. No se reserva al login ni se introduce un segundo flujo de upload; recuperación del POST perdido/idempotencia original siguen vigentes. Sin snapshot configurado, la vista existente informa que no hay instrucciones, nunca inventa una cuenta.
+
+Etiquetas cliente/admin: `awaiting_proof` → **Sin comprobante**, `reviewing` → **Por confirmar**, `paid` → **Confirmado**, `cancelled` → **Cancelado**; Rechazado/Vencido siguen disponibles. Es exclusivamente presentación: reviewing permanece retenido sin vencimiento automático y solo paid participa.
+
+### Contacto privado
+
+Nuevos registros requieren teléfono internacional con + y código de país, normalizado a E.164; no se adivina país. Validación formulario + middleware Better Auth para HTTP directo. `user.phone` nullable preserva cuentas existentes: no backfill, login/reservas legacy sin obligación. El resultado admin exige requireAdmin fresco antes de consultar ganador por compra→usuario y devuelve nombre/teléfono/enlace `https://wa.me/<dígitos>`; legacy muestra contacto no disponible. DTO público usa allowlist sin contacto/orderId/actor. Abrir WhatsApp es una acción **manual**; no SMS, mensajes automáticos ni credenciales de proveedor. Ver [auth.md](auth.md).
+
+### Cron Vercel Hobby
+
+`vercel.json`: GET `/api/cron/draw`, `0 12 * * *` (**12:00 UTC**, 06:00 Ciudad de México). Se eligió ejecución diaria, no puntual a drawAt. Hobby puede ejecutar hasta **59 minutos después**; Vercel **no reintenta** un fallo. Las rifas pendientes/fallidas se reconsideran al día siguiente; conservar botón administrativo manual.
+
+Configurar **CRON_SECRET** únicamente en entorno servidor de Vercel, sin `VITE_`, y desplegar la configuración. Vercel envía `Authorization: Bearer <CRON_SECRET>`. Sin secreto configurado retorna503; token ausente/incorrecto retorna401 antes de importar DB. No acepta cookies de administrador como sustituto. Respuesta no-store: solo completed/deferred/failed o código sanitizado, sin PII ni excepciones SQL en logs. Fallos internos/lote parcialmente fallido retornan500; no prometen replay del proveedor.
+
+Lote10 (máximo interno25): SQL filtra fecha/status, ausencia de resultado, ausencia de reviewing/awaiting vigente y existencia de tickets paid **antes de LIMIT**, ordenando cierre/id. Rifas bloqueadas/vacías no consumen el lote de listas. Awaiting vencido se resuelve por expiración existente dentro de performDraw; reviewing nunca se cancela. performDraw vuelve a validar bajo lock/transacción, usa crypto.randomInt y paid-only y retorna resultado previo en reintentos/concurrencia. No se atribuye a un humano ni se crea usuario técnico con credenciales.
+
+### Migración y auditoría
+
+`drizzle/0005_phone_automatic_draw.sql`: phone nullable + CHECK formato; `raffle_draws.source` manual/automatic con default manual para historia; actor FK ahora nullable y CHECK exige manual→actor no nulo / automatic→actor NULL. Es la opción mínima segura: conserva auditoría humana anterior y registra sistema explícito sin identidad ficticia. Evento ganador automático mantiene actor NULL y motivo `automatic:crypto-randomInt-v1`. La fuente se deriva exclusivamente en repositorio server-only, no es input cliente. SQL/journal preparados offline y probados en PGlite; **no aplicados a DB real**. Snapshot0005 generado offline por API Drizzle, conserva prevId de0004; comparación snapshot→esquema produce0 sentencias. Snapshot histórico intacto.
+
+**Implementado no significa activado**: aplicar la migración revisada, configurar CRON_SECRET y desplegar son pendientes. Ninguna cuenta real creada/cambiada por esta tarea. Verificación final independiente:110/110 pruebas y25 checkpoints del harness completos, pageErrors0/hydration0/logout PASS; tipos/build correctos. Los primeros intentos fallaron por import temprano: preoptimización explícita/readiness resolvieron el arranque sin filtrar errores. Las imágenes browser dev no se declaran correctas. Evidencia actual e histórica en [tasks/backend.md](tasks/backend.md). No se instalaron navegadores/dependencias.
+
+Fuentes operativas: [uso y precios](https://vercel.com/docs/cron-jobs/usage-and-pricing), [administración de cron](https://vercel.com/docs/cron-jobs/manage-cron-jobs). El cron no activa los workers históricos de Storage ni correo.
+
 ## Administración corregida — estado actual
 
 La administración usa únicamente **Resumen, Rifas, Compras e Ingresos**, con la estructura de `docs/design/Rifas-Nova-admin.html` y datos reales del servidor. Las secciones históricas de este documento describen implementaciones anteriores: Configuración y Notificaciones fueron retiradas, junto con sus funciones y productores de eventos. `/api/purchases/payment-settings` responde **410**; los jobs actuales solo realizan expiración y recuperación de archivos. Las tablas y migraciones históricas se conservan, sin DDL ni borrado de datos.

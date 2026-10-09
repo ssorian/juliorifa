@@ -14,6 +14,7 @@ Object.assign(process.env, {
   RESEND_API_KEY: 'fixture-invalid',
   EMAIL_FROM: 'fixture@fixture.invalid',
   JOBS_ENABLED: 'false',
+  CRON_SECRET: 'isolated-cron-fixture-only',
   PAYMENT_BANK: 'Fixture Bank',
   PAYMENT_BENEFICIARY: 'Fixture Organizer',
   PAYMENT_ACCOUNT: 'fixture-account',
@@ -65,6 +66,22 @@ const fixture: Plugin = {
   async configureServer(server) {
     const { state, validSignature } = await import('./tests/e2e/state')
     await state.ready
+    let clientReady: Promise<void> | undefined
+    const warmClient = () =>
+      (clientReady ??= (async () => {
+        const client = server.environments.client
+        const entry = await client.transformRequest(
+          '/node_modules/@tanstack/react-start/dist/plugin/default-entry/client.tsx',
+        )
+        if (!entry) throw new Error('Fixture client entry unavailable')
+        await client.waitForRequestsIdle()
+        await client.depsOptimizer?.scanProcessing
+        await Promise.all(
+          Object.values(client.depsOptimizer?.metadata.optimized ?? {}).map(
+            (dep) => dep.processing,
+          ),
+        )
+      })())
     server.httpServer?.on('close', () => {
       void state.pg.close()
     })
@@ -106,8 +123,10 @@ const fixture: Plugin = {
           return res.end()
         }
         res.setHeader('Content-Type', 'application/json')
-        if (url.pathname === '/__fixture/ready')
-          return res.end(JSON.stringify({ ready: true }))
+        if (url.pathname === '/__fixture/ready') {
+          await warmClient()
+          return res.end(JSON.stringify({ ready: true, clientReady: true }))
+        }
         if (url.pathname === '/__fixture/pump' && req.method === 'POST') {
           const load = (
             globalThis as typeof globalThis & {
@@ -205,6 +224,31 @@ export default ({ command }: { command: string }) => {
     throw new Error('Fixture config supports isolated development only')
   return {
     ...base,
+    envDir: false,
+    cacheDir: `/tmp/juliorifa-e2e-vite-${process.pid}`,
+    // Cold PID caches must not rediscover client deps during authenticated navigation.
+    optimizeDeps: {
+      noDiscovery: true,
+      include: [
+        'react',
+        'react-dom',
+        'react-dom/client',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
+        '@tanstack/react-query',
+        '@tanstack/react-query-devtools',
+        '@tanstack/react-devtools',
+        '@tanstack/react-router-ssr-query',
+        '@tanstack/react-router > @tanstack/react-store',
+        '@tanstack/router-core',
+        '@tanstack/router-core/isServer',
+        '@tanstack/router-core/ssr/client',
+        'better-auth/react',
+        'better-auth/client/plugins',
+        'dayjs',
+        'dayjs/plugin/*',
+      ],
+    },
     plugins: [fixture, ...(base.plugins || [])],
     server: { host: '127.0.0.1', port: 3212, strictPort: true },
   }

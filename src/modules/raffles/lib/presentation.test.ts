@@ -34,5 +34,5 @@ test('own query keys isolate identities and reviewing never expires or means pai
     false,
   )
   assert.equal(purchaseFlags('paid', '2000-01-01', 1e12).paid, true)
-  assert.equal(statusLabel('reviewing'), 'En revisión — boletos retenidos')
+  assert.equal(statusLabel('reviewing'), 'Por confirmar')
 })

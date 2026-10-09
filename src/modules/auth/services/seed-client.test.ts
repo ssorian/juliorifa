@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { drizzle } from 'drizzle-orm/pglite'
@@ -14,15 +14,12 @@ import type { SeedConnection } from './seed-client'
 test('seed creates native client credentials, repeats safely and rejects collisions unchanged', async () => {
   const db = new PGlite()
   try {
-    await db.exec(
-      await readFile(
-        new URL(
-          '../../../../drizzle/0000_bitter_cassandra_nova.sql',
-          import.meta.url,
-        ),
-        'utf8',
-      ),
-    )
+    const directory = new URL('../../../../drizzle/', import.meta.url)
+    for (const name of (await readdir(directory))
+      .filter((migrationName) => /^\d{4}.*\.sql$/.test(migrationName))
+      .sort()) {
+      await db.exec(await readFile(new URL(name, directory), 'utf8'))
+    }
     const repository = {
       transaction: <T>(work: (tx: SeedConnection) => Promise<T>) =>
         db.transaction(work),

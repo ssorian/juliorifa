@@ -8,6 +8,7 @@ import {
   mexicoISO,
   parseSelection,
   canReview,
+  labels,
 } from './admin'
 import { RevenueChart } from '../components/RevenueChart'
 import { PurchaseFacts } from '../components/PurchaseFacts'
@@ -72,7 +73,27 @@ test('admin purchase facts preserve bank snapshot and pending/legal amounts', ()
     },
   }
   const html = renderToString(<PurchaseFacts order={fixture} />)
-  assert.match(html, /En revisión/)
+  assert.match(html, /Contacto no disponible/)
+  const contact = renderToString(
+    <PurchaseFacts
+      order={{
+        ...fixture,
+        customer: {
+          name: 'Fixture',
+          email: 'fixture@example.invalid',
+          phone: '+525512345678',
+          whatsapp: 'https://wa.me/525512345678',
+        },
+      }}
+    />,
+  )
+  assert.match(contact, /href="https:\/\/wa.me\/525512345678"/)
+  assert.match(contact, /WhatsApp manual/)
+  assert.match(contact, /\+525512345678/)
+  assert.match(html, /Por confirmar/)
+  assert.equal(labels.awaiting_proof, 'Sin comprobante')
+  assert.equal(labels.paid, 'Confirmado')
+  assert.equal(labels.cancelled, 'Cancelado')
   assert.match(html, /246\.90/)
   assert.match(html, /2\.47/)
   assert.match(html, /Banco anterior/)

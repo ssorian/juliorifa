@@ -2,6 +2,7 @@ import '@tanstack/react-start/server-only'
 import { createHash, randomUUID } from 'node:crypto'
 import { and, eq, ilike, or, sql, desc } from 'drizzle-orm'
 import { user } from '../auth/db/schema'
+import { winnerContact } from '../auth/lib/phone'
 import { mediaAssets } from '../../lib/storage/db'
 import { db } from '../../db'
 import {
@@ -187,10 +188,11 @@ export async function detail(id: string, admin = false) {
         .from(raffles)
         .where(eq(raffles.id, fresh.raffleId))
     ).at(0)
-    const [customer] = await tx
-      .select({ name: user.name, email: user.email })
+    const customers = await tx
+      .select({ name: user.name, email: user.email, phone: user.phone })
       .from(user)
       .where(eq(user.id, fresh.userId))
+    const customer = customers.at(0)
     const assets = fresh.proofAssetId
       ? await tx
           .select()
@@ -198,9 +200,19 @@ export async function detail(id: string, admin = false) {
           .where(eq(mediaAssets.id, fresh.proofAssetId))
       : []
     const asset = assets.at(0)
+    const contact = customer
+      ? winnerContact(customer.name, customer.phone)
+      : null
     return {
       ...result,
-      customer,
+      customer: customer
+        ? {
+            name: customer.name,
+            email: customer.email,
+            phone: contact?.phone ?? null,
+            whatsapp: contact?.whatsapp ?? null,
+          }
+        : undefined,
       raffleTitle: raffle?.title ?? 'Rifa no disponible',
       proofMime: asset?.mime ?? null,
       proofVerified:

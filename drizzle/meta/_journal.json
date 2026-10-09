@@ -36,6 +36,13 @@
       "when": 1791350673643,
       "tag": "0004_romantic_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791350673644,
+      "tag": "0005_phone_automatic_draw",
+      "breakpoints": true
     }
   ]
 }

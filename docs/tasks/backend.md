@@ -1,5 +1,39 @@
 # Backend por bloques
 
+## Tarea 23 — apartado, estados, contacto y cron diario (implementación; activación pendiente)
+
+### Cierre independiente — PASS del alcance solicitado
+
+Reverificación final: 110/110 pruebas, 25 checkpoints de navegador con caché fría, cero errores de página/hidratación y logout correcto. TypeScript, build y diff-check PASS; lint sin errores y una advertencia histórica. Los tres P2 están corregidos, sin nuevos hallazgos en este alcance. Las imágenes dev siguen con 18 respuestas404 dependientes de headers; no se declara ese comportamiento correcto ni se atribuye a esta feature. Migración y cron reales pendientes de activación.
+
+### Writerfix de tres P2 — evidencia de corrección
+
+- Contacto pre-sorteo: `adminPurchase`/listado administrativo incluyen teléfono/wa.me saneado usando helper auth; PurchaseFacts permite abrir WhatsApp manual para confirmar comprobante antes de sortear. Legacy NULL informa contacto no disponible. E2E prueba reviewing antes del sorteo, cliente denegado y own DTO sin customer/phone; no cambia DTO público ni envía mensajes.
+- Seed fixture: RED local reprodujo `column phone does not exist`; ahora aplica todas SQL0000–0005 ordenadas en PGlite, sin retirar assertions ni tocar seed/DB real. GREEN focal5/5, full suite110/110.
+- Startup: readiness anterior esperaba solo DB; descubrimiento tardío ReactQuery/modern invalidaba cachecold y causaba504/import. Fixture ahora preoptimiza lista cliente explícita (React/DOM, Query, Router deps, BetterAuth y CJS dayjs), noDiscovery:true; readiness transforma entry cliente y espera imports/optimizer. No se optimiza el entry framework saltando transformaciones TanStack. envDir:false/cacheDir PID/outbound guard intactos; sin filtros pageerror ni desactivar limiter.
+- Cold independientes completos: `/tmp/juliorifa-writerfix-cold2.log`, `cold3.log`, `cold4.log`, **25 checkpoints PASS cada uno, exit0, pageErrors0/hydration0/logout PASS**. Las ejecuciones interrumpidas y los fallos anteriores siguen siendo históricos, no evidencia PASS.
+- FULL: `node --import tsx --test $(find src tests scripts -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) | sort)` →110/110 PASS, `/tmp/juliorifa-writerfix-full-suite-final.log`. Build Vite PASS (warnings deprecación inputValidator/use-client), `/tmp/juliorifa-writerfix-build.log`; tsc/diffcheck PASS; lint correctivo0 errores,1 warning no-shadow histórico en callback image del harness.
+- Diagnóstico404 no ocultado:18 respuestas imagen en UI por ejecución; misma imagen publicada da200 con Accept genérico y404 con headers navegador imagen, `/tmp/juliorifa-writerfix-cold4.log`. No objeto ausente ni regresión de contacto/cron; frontera dev routing por headers, pendiente análisis independiente sin refactor productivo en este writerfix.
+
+La evidencia FAIL global que aparece abajo corresponde a la entrega anterior, **superada por los cold PASS del writerfix**. Migración/cron/WhatsApp reales siguen sin activar; cero cuentas reales creadas/modificadas.
+
+
+Criterios autorizados: cuatro bloques, escritor único, sin commits/PR, instalación, lectura/cambio de secretos ni DB real. Teléfono solo nuevos registros; mantener cuentas antiguas, Mis apartados, idempotencia y confirmación explícita. Ninguna cancelación de reviewing ni atribución automática a un administrador. Forecast 450–750 líneas de cambio funcional/documental; metadatos de esquema se contabilizan aparte.
+
+- [x] Tras POST confirmado, TicketSelection mantiene diálogo con PurchaseDetail existente: snapshot bancario/importe, copia, plazo, carga privada, historial y enlace a Mis apartados. Sin nuevo upload ni autoridad local; selección/login y recuperación de respuesta perdida conservados.
+- [x] Cliente/admin: Sin comprobante / Por confirmar / Confirmado / Cancelado; conservar Rechazado/Vencido. Estados SQL y reglas intactos.
+- [x] Registro requiere teléfono internacional normalizado en formulario y middleware servidor Better Auth. Columna nullable, login y reservas legacy sin gate. Contacto ganador admin-only; enlace wa.me saneado manual, legacy no disponible; DTO público por allowlist sin contacto. Sin SMS/mensajes automáticos.
+- [x] GET /api/cron/draw falla cerrado sin CRON_SECRET y exige Bearer exacto antes de cargar DB. Diario 12:00 UTC (06:00 Ciudad de México), lote 10, máximo interno 25; elegibilidad antes de limit evita starvation por rifas pendientes/vacías. Reutiliza performDraw, randomInt, paid-only, locks/transacción/idempotencia. Awaiting vencido usa expiración existente; reviewing jamás vence/cancela. Pendientes se reconsideran días posteriores, botón manual conservado.
+- [x] Auditoría mínima: source manual/automatic y actor nullable; CHECK exige actor humano en manual y NULL en automatic. Filas antiguas default manual, FK intacta. Evento ganador automático tiene actor NULL y motivo automatic:crypto-randomInt-v1. Fuente no expuesta como input servidor público. Respuesta cron solo conteos/códigos, sin PII/logs crudos.
+- [x] 0005_phone_automatic_draw.sql y journal preparados offline; PGlite aplica SQL en memoria. **No aplicada en DB real**. Snapshot0005 generado offline con API Drizzle; comparación nuevo snapshot→esquema produce0 sentencias. Snapshot0004 histórico intacto.
+- [x] RED observado: etiquetas SSR esperaba Por confirmar pero recibió En revisión; nuevos módulos phone/cron/dialog ausentes fallaron import antes de implementar. GREEN focal: 27/27 tests; HTTP directo Better Auth rechaza teléfono ausente/inválido, persiste normalizado, login con NULL permitido. SQL prueba ready después de blocked con limit1, reviewing conservado, expiry, actor/source CHECK, retry original y contacto privado/DTO público.
+- [x] TypeScript --noEmit PASS tras corregir acceso UI a unión público/admin; ESLint scoped0 errores/1 warning no-shadow existente en callback image del harness; git diff --check PASS. Formato únicamente archivos tocados, no global.
+- [x] Harness final y reverificación independiente:25 checkpoints PASS, pageErrors0/hydration0/logout correcto; build PASS. Histórico RED: primer intento falló selector tel exacto; siguientes intentos completaron el flujo pero fallaron globalmente por import temprano. Esperas networkidle/cache aislada no bastaron; la preoptimización/readiness del writerfix resolvió el arranque sin suprimir errores. Un smoke HTTP200 por sí solo no acredita interacción.
+
+Sizing observado: 1327 líneas authored additions+deletions incluyendo writerfix; 1645 líneas adicionales de snapshot generado (2972 total,42 archivos; +2893/−79). Exceso sobre forecast750 notificado al padre, sin recortar pruebas. Las capturas/cachés /tmp, router generado y vite.e2e.config.ts (solo envDir:false/cacheDir PID/CRON_SECRET dummy) fueron ampliaciones técnicas autorizadas; servidor3000 no reiniciado.
+
+Activación separada: revisar/aplicar 0005 con autorización operativa, configurar CRON_SECRET únicamente en Vercel y desplegar vercel.json. Hobby admite diario, no exactitud horaria y retraso hasta 59 minutos; Vercel no reintenta fallos. Rifas omitidas/fallidas se reconsideran al día siguiente. No se activó cron, no cuentas reales creadas/modificadas en esta tarea. Contrato/configuración en [backend.md](../backend.md); teléfono en [auth.md](../auth.md).
+
 ## Alcance y estado
 
 Histórico de implementación (antes del cierre autorizado de desarrollo): escritor único. Árbol inicial untracked preservado; ningún git terminal action, secreto inspeccionado/editado, S3 real/correo real ni DDL en DB real. Instalación inicial autorizada AWS SDK/sharp y PGlite DEV; AWS sustituido posteriormente por Supabase SDK 2.117.3. Outputs tooling esperados.

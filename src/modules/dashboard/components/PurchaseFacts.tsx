@@ -9,6 +9,21 @@ export function PurchaseFacts({ order }: { order: PurchaseDTO }) {
       <p>
         {order.customer?.name} · {order.customer?.email}
       </p>
+      {order.customer?.phone && order.customer.whatsapp ? (
+        <p>
+          {order.customer.phone}{' '}
+          <a
+            href={order.customer.whatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            referrerPolicy="no-referrer"
+          >
+            WhatsApp manual para confirmar comprobante
+          </a>
+        </p>
+      ) : (
+        <p>Contacto no disponible (cuenta antigua).</p>
+      )}
       <dl>
         <dt>Rifa</dt>
         <dd>{order.raffleId}</dd>

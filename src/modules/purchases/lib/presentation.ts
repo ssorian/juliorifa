@@ -4,12 +4,12 @@ export const ownKey = (userId: string, kind: string, id = '') =>
   ['own-purchases', userId, kind, id] as const
 export function statusLabel(status: PurchaseStatus) {
   return {
-    awaiting_proof: 'Pendiente de comprobante',
-    reviewing: 'En revisión — boletos retenidos',
-    paid: 'Pago aprobado',
+    awaiting_proof: 'Sin comprobante',
+    reviewing: 'Por confirmar',
+    paid: 'Confirmado',
     rejected: 'Rechazado — boletos liberados',
     expired: 'Vencido — boletos liberados',
-    cancelled: 'Cancelado — boletos liberados',
+    cancelled: 'Cancelado',
   }[status]
 }
 export function purchaseFlags(

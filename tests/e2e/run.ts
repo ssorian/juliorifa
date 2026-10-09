@@ -53,6 +53,8 @@ try {
     try {
       const r = await helper('ready')
       if (r.ok) {
+        const readiness = await r.json()
+        assert.equal(readiness.clientReady, true)
         ready = true
         break
       }
@@ -97,10 +99,38 @@ try {
       'timeout',
     ].filter((term) => error.message.toLowerCase().includes(term.toLowerCase()))
     console.log(
+      'CHECK browser error detail:',
+      error.message
+        .replace(/https?:\/\/\S+/g, '[module URL]')
+        .replace(/[A-Za-z0-9_.+-]+@[A-Za-z0-9.-]+/g, '[email]')
+        .replace(/[a-zA-Z0-9_-]{32,}/g, '[redacted]'),
+    )
+    console.log(
       'CHECK browser error categories:',
       category.join(',') || 'unclassified',
     )
   }
+  const imageFailures: Array<{ stage: string; status: number }> = []
+  context.on('response', async (response: any) => {
+    if (
+      response.url().includes('/api/media/images/') &&
+      response.status() >= 400
+    ) {
+      imageFailures.push({ stage, status: response.status() })
+      const body = await response.json().catch(() => null)
+      const code =
+        typeof body?.error === 'string' && /^[A-Z_]+$/.test(body.error)
+          ? body.error
+          : 'NON_JSON'
+      const path = new URL(response.url()).pathname.replace(
+        /[0-9a-f]{8}-[0-9a-f-]{27}/gi,
+        '[asset]',
+      )
+      console.log(
+        `CHECK image HTTP ${response.status()} (${code}) at ${path} during ${stage}`,
+      )
+    }
+  })
   page.on('pageerror', recordPageError)
   page.on('console', (message: { text: () => string }) => {
     if (/hydration|hydrated|did not match/i.test(message.text()))
@@ -110,6 +140,7 @@ try {
   for (const path of ['/dashboard', '/mis-compras']) {
     await page.goto(base + path)
     await page.waitForURL('**/login**')
+    await page.waitForLoadState('networkidle')
     assert.ok(!page.url().includes(path))
   }
   console.log('PASS visitor dashboard/account redirects')
@@ -132,6 +163,7 @@ try {
       email,
       password,
       name: 'Fixture Client',
+      ...(signup ? { phone: '+52 55 1234 5678' } : {}),
       callbackURL: '/dashboard',
       ...(role ? { role } : {}),
     }
@@ -168,6 +200,7 @@ try {
   const weak = await nativeAuth('sign-up/email', {
     email: 'weak@fixture.invalid',
     name: 'Fixture',
+    phone: '+525512345678',
     password: randomBytes(4).toString('hex'),
   })
   assert.equal(weak.status(), 400)
@@ -175,6 +208,7 @@ try {
   const duplicate = await nativeAuth('sign-up/email', {
     email: 'client@fixture.invalid',
     name: 'Replacement',
+    phone: '+525512345678',
     password: replacement,
     role: 'admin',
   })
@@ -191,6 +225,7 @@ try {
   const oversized = await nativeAuth('sign-up/email', {
     email: 'oversized@fixture.invalid',
     name: 'Fixture',
+    phone: '+525512345678',
     password: randomBytes(65).toString('hex'),
   })
   assert.equal(oversized.status(), 400)
@@ -208,6 +243,7 @@ try {
   stage = 'client dashboard denial'
   await page.goto(base + '/dashboard')
   await page.waitForURL(base + '/')
+  await page.waitForLoadState('networkidle')
   console.log(
     'PASS native client cookie, owner portal, role-input rejection and admin denial',
   )
@@ -301,6 +337,22 @@ try {
     id: raffle.id,
     status: 'active',
   })
+  const primaryImageRead = await context.request.get(base + image.mediaUrl)
+  assert.equal(
+    primaryImageRead.status(),
+    200,
+    'primary fixture image uploaded/published is readable',
+  )
+  const imageAcceptRead = await context.request.get(base + image.mediaUrl, {
+    headers: {
+      Accept:
+        'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      'Sec-Fetch-Dest': 'image',
+    },
+  })
+  console.log(
+    `CHECK same image API generic Accept=${primaryImageRead.status()} browser image Accept=${imageAcceptRead.status()}`,
+  )
   console.log(
     'PASS real admin draft, raw PNG validation, memory storage and publish',
   )
@@ -599,6 +651,26 @@ try {
     drawAt: due,
   })
   const beforeDraw = await (await helper('counts')).json()
+  assert.equal(
+    (await context.request.get(base + '/api/cron/draw')).status(),
+    401,
+  )
+  assert.equal(
+    (
+      await context.request.get(base + '/api/cron/draw', {
+        headers: { Authorization: 'Bearer wrong-fixture' },
+      })
+    ).status(),
+    401,
+  )
+  const automatic = () =>
+    context.request.get(base + '/api/cron/draw', {
+      headers: { Authorization: 'Bearer isolated-cron-fixture-only' },
+    })
+  const automaticResponse = await automatic()
+  assert.equal(automaticResponse.status(), 200)
+  assert.equal((await automaticResponse.json()).completed, 1)
+  assert.equal((await (await automatic()).json()).completed, 0)
   const drawn = await rpc(raffleModule, 'executeDraw', { id: raffle.id })
   const drawnAgain = await rpc(raffleModule, 'executeDraw', { id: raffle.id })
   assert.deepEqual(drawnAgain, drawn)
@@ -611,6 +683,8 @@ try {
   const adminDraw = await rpc(raffleModule, 'adminDraw', { id: raffle.id })
   assert.equal(adminDraw.randomIndex, 0)
   assert.equal(adminDraw.winnerOrderId, original.id)
+  assert.equal(adminDraw.source, 'automatic')
+  assert.equal(adminDraw.actorId, null)
   const publicDraw = await rpc(raffleModule, 'publicDraw', { id: raffle.id })
   assert.ok(!JSON.stringify(publicDraw).includes('@'))
   console.log('PASS actual crypto draw, repeat result and public no-email DTO')
@@ -1030,12 +1104,23 @@ try {
     .getByRole('heading', { name: 'Confirma tu apartado', exact: true })
     .waitFor()
   console.log('CHECK A confirmation dialog opened')
-  // Confirmation performs a full location.assign after the server commits.
-  // Do not conflate Playwright's click/navigation auto-wait with that business
-  // result: wait explicitly for the real owned-order route instead.
+  // A committed reservation stays in the dialog, reusing own snapshot/upload UI.
   await cartPage
     .getByRole('button', { name: 'CONFIRMAR APARTADO', exact: true })
     .click({ noWaitAfter: true, timeout: 60000 })
+  await cartPage
+    .getByRole('heading', { name: 'Apartado confirmado', exact: true })
+    .waitFor()
+  await cartPage.getByText('Fixture Bank', { exact: true }).waitFor()
+  assert.equal(
+    await cartPage
+      .getByRole('button', { name: 'CONFIRMAR APARTADO', exact: true })
+      .count(),
+    0,
+  )
+  await cartPage
+    .getByRole('link', { name: 'Continuar en Mis apartados', exact: true })
+    .click()
   await cartPage.waitForURL('**/mis-compras?id=*', {
     waitUntil: 'domcontentloaded',
     timeout: 60000,
@@ -1105,6 +1190,198 @@ try {
   )
   console.log(
     'PASS A new anonymous same-cart login UI, native password callback, restored intent/selection, zero auto POST and one explicit original reservation',
+  )
+  stage =
+    'new signup international phone, reservation payment dialog and manual winner contact'
+  const signupContext = await browser.newContext()
+  await signupContext.route('**/*', async (route: any) => {
+    const url = new URL(route.request().url())
+    return ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
+      ? route.continue()
+      : route.abort()
+  })
+  const signupPage = await signupContext.newPage()
+  signupPage.on('pageerror', recordPageError)
+  const signupPassword = randomBytes(24).toString('hex')
+  await signupPage.goto(base + '/signin')
+  await signupPage.waitForLoadState('networkidle')
+  await signupPage
+    .getByLabel('Nombre', { exact: true })
+    .fill('Phone Winner Fixture')
+  await signupPage
+    .getByLabel('Correo electrónico', { exact: true })
+    .fill('phone-winner@fixture.invalid')
+  await signupPage
+    .getByRole('textbox', { name: /^Teléfono internacional/ })
+    .fill('+52 (55) 9876-5432')
+  await signupPage
+    .getByLabel('Contraseña', { exact: true })
+    .fill(signupPassword)
+  await signupPage
+    .getByLabel('Confirmar contraseña', { exact: true })
+    .fill(signupPassword)
+  const signupSubmit = () =>
+    Promise.all([
+      signupPage.waitForResponse((response: { url: () => string }) =>
+        response.url().includes('/api/auth/sign-up/email'),
+      ),
+      signupPage
+        .getByRole('button', { name: 'Crear cuenta', exact: true })
+        .click({ noWaitAfter: true }),
+    ])
+  let [signupResponse] = await signupSubmit()
+  if (signupResponse.status() === 429) {
+    await delay(61000)
+    ;[signupResponse] = await signupSubmit()
+  }
+  assert.equal(signupResponse.status(), 200)
+  await signupPage.waitForURL(base + '/')
+  const signupSession = await (
+    await signupContext.request.get(base + '/api/auth/get-session')
+  ).json()
+  assert.equal(signupSession.user.phone, '+525598765432')
+  const beforeSignupReservation = await (await helper('counts')).json()
+  await signupPage.goto(base + `/#rifa/${uiId}`)
+  await signupPage.waitForLoadState('networkidle')
+  await signupPage.locator('.ticket-number').first().click()
+  await signupPage
+    .getByRole('button', { name: 'CONTINUAR', exact: true })
+    .click()
+  assert.equal(
+    (await (await helper('counts')).json()).purchases,
+    beforeSignupReservation.purchases,
+  )
+  await signupPage
+    .getByRole('button', { name: 'CONFIRMAR APARTADO', exact: true })
+    .click()
+  const payment = signupPage.getByRole('dialog')
+  await payment
+    .getByRole('heading', { name: 'Apartado confirmado', exact: true })
+    .waitFor()
+  await payment.getByText(bank.bank, { exact: true }).waitFor()
+  await payment.getByText('Sin comprobante', { exact: true }).waitFor()
+  assert.equal(
+    (await (await helper('counts')).json()).purchases,
+    beforeSignupReservation.purchases + 1,
+  )
+  const ownLink = await payment
+    .getByRole('link', { name: 'Continuar en Mis apartados', exact: true })
+    .getAttribute('href')
+  const signupOrderId = new URL(ownLink, base).searchParams.get('id')
+  await payment
+    .getByLabel('Subir comprobante (PNG, JPEG, WebP o PDF; máximo 10 MB)', {
+      exact: true,
+    })
+    .setInputFiles({ name: 'proof.png', mimeType: 'image/png', buffer: png })
+  await payment.getByText('Por confirmar', { exact: true }).waitFor()
+  const signupOwn = await rpc(
+    purchaseModule,
+    'ownPurchase',
+    { id: signupOrderId },
+    signupPage,
+  )
+  assert.equal('customer' in signupOwn, false)
+  assert.equal('phone' in signupOwn, false)
+  await assert.rejects(
+    rpc(purchaseModule, 'adminPurchase', { id: signupOrderId }, signupPage),
+  )
+  await signupContext.close()
+  const beforeDrawPurchase = await rpc(purchaseModule, 'adminPurchase', {
+    id: signupOrderId,
+  })
+  assert.equal(beforeDrawPurchase.status, 'reviewing')
+  assert.equal(beforeDrawPurchase.customer.phone, '+525598765432')
+  assert.equal(
+    beforeDrawPurchase.customer.whatsapp,
+    'https://wa.me/525598765432',
+  )
+  await page.goto(base + '/dashboard#compras')
+  await page
+    .getByRole('button', { name: `Ver compra ${signupOrderId}`, exact: true })
+    .click()
+  const contactDialog = page.getByRole('dialog', {
+    name: 'Detalle de compra',
+    exact: true,
+  })
+  await contactDialog
+    .getByText('Detalles de la compra e instrucciones de pago', { exact: true })
+    .click()
+  assert.equal(
+    await contactDialog
+      .getByRole('link', {
+        name: 'WhatsApp manual para confirmar comprobante',
+        exact: true,
+      })
+      .getAttribute('href'),
+    'https://wa.me/525598765432',
+  )
+  await contactDialog
+    .getByRole('button', { name: 'Cerrar compra', exact: true })
+    .click()
+  console.log(
+    'PASS pre-draw admin purchase manual phone contact; client denied and own DTO contact-free',
+  )
+  assert.equal(
+    (
+      await context.request.post(
+        `${base}/api/purchases/${signupOrderId}/approve`,
+        {
+          headers: { Origin: base },
+          data: { reason: 'Isolated phone winner evidence' },
+        },
+      )
+    ).status(),
+    200,
+  )
+  await rpc(raffleModule, 'updateRaffle', {
+    id: uiId,
+    title: edited.title,
+    description: edited.description,
+    startNumber: edited.startNumber,
+    ticketCount: edited.ticketCount,
+    priceCents: edited.priceCents,
+    feeBps: edited.feeBps,
+    prizeCostCents: edited.prizeCostCents,
+    expensesCents: edited.expensesCents,
+    features: edited.features,
+    status: 'closed',
+    salesDeadline: due,
+    drawAt: due,
+    images: edited.images.map((item: { key: string; alt: string }) => ({
+      key: item.key,
+      alt: item.alt,
+    })),
+  })
+  await rpc(raffleModule, 'executeDraw', { id: uiId })
+  const privateWinner = await rpc(raffleModule, 'adminDraw', { id: uiId })
+  assert.equal(privateWinner.winnerContact.phone, '+525598765432')
+  assert.equal(
+    privateWinner.winnerContact.whatsapp,
+    'https://wa.me/525598765432',
+  )
+  const publicWinner = await rpc(raffleModule, 'publicDraw', { id: uiId })
+  assert.equal('winnerContact' in publicWinner, false)
+  await page.goto(base + '/dashboard#rifas')
+  await page
+    .locator('tbody tr')
+    .filter({ hasText: editedTitle })
+    .getByRole('button', { name: 'Sorteo', exact: true })
+    .click()
+  const winnerDialog = page.getByRole('dialog', { name: 'Sorteo', exact: true })
+  await winnerDialog
+    .getByText('No se envían mensajes automáticamente.', { exact: true })
+    .waitFor()
+  assert.equal(
+    await winnerDialog
+      .getByRole('link', { name: 'Abrir WhatsApp manualmente', exact: true })
+      .getAttribute('href'),
+    'https://wa.me/525598765432',
+  )
+  await winnerDialog
+    .getByRole('button', { name: 'Cerrar', exact: true })
+    .click()
+  console.log(
+    'PASS new signup phone, immediate snapshot/proof dialog, private manual winner contact and public privacy',
   )
   stage = 'private bootstrapped short credential native login UI'
   const shortPassword = randomBytes(4).toString('hex')
@@ -1194,6 +1471,7 @@ try {
     }
   }
   console.log('PASS desktop/mobile public/account/admin document overflow')
+  console.log(`CHECK image endpoint failures: ${imageFailures.length}`)
   assert.equal(pageErrors, 0, 'browser page errors')
   assert.equal(hydrationErrors, 0, 'browser hydration errors')
   console.log('PASS no browser pageerror/hydration diagnostics')

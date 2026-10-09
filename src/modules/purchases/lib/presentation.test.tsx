@@ -29,9 +29,9 @@ const fixture: PurchaseDTO = {
 }
 test('SSR reviewing is retained not paid; server total without surcharge and snapshot labels', () => {
   const html = renderToStaticMarkup(<PurchaseSummary purchase={fixture} />)
-  assert.match(html, /En revisión/)
+  assert.match(html, /Por confirmar/)
   assert.match(html, /sin vencimiento automático/)
-  assert.doesNotMatch(html, /Pago aprobado|Fecha límite para subir|129[.,]63/)
+  assert.doesNotMatch(html, /Confirmado|Fecha límite para subir|129[.,]63/)
   assert.match(html, /123[.,]45/)
   assert.match(html, /Banco fixture/)
   assert.match(html, /Concepto fixture/)

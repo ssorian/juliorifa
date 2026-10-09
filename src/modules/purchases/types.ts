@@ -16,7 +16,12 @@ export interface PurchaseDTO {
   paymentInstructions: PaymentInstructions | null
   reviewedAt: string | null
   // Only present in requireAdmin-protected DTOs, never own/public responses.
-  customer?: { name: string; email: string }
+  customer?: {
+    name: string
+    email: string
+    phone?: string | null
+    whatsapp?: string | null
+  }
   raffleTitle?: string
   proofMime?: string | null
   proofVerified?: boolean

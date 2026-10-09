@@ -2,6 +2,10 @@ import '@tanstack/react-start/server-only'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
+import {
+  phoneField,
+  validateRegistrationPhone,
+} from '../modules/auth/lib/registration'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 import { db } from '../db'
 import { authConfig } from '../config/auth'
@@ -22,6 +26,7 @@ export const auth = betterAuth({
   user: {
     additionalFields: {
       role: { type: 'string', defaultValue: 'client', input: false },
+      phone: phoneField,
     },
   },
   databaseHooks: {
@@ -35,6 +40,8 @@ export const auth = betterAuth({
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      // Enforce only signup, not login or existing-user reservations.
+      validateRegistrationPhone(ctx)
       // Direct API callers cannot choose an external or role-specific destination.
       if (['/sign-in/email', '/sign-up/email'].includes(ctx.path) && ctx.body) {
         ctx.body.callbackURL = normalizeCallback(ctx.body.callbackURL)

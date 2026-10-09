@@ -16,6 +16,7 @@ import { Route as SigninRouteImport } from './routes/signin'
 import { Route as AuthCompleteRouteImport } from './routes/auth/complete'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiCronDrawRouteImport } from './routes/api/cron/draw'
 import { Route as ApiPurchasesPaymentSettingsRouteImport } from './routes/api/purchases/payment-settings'
 import { Route as ApiMediaImagesIdRouteImport } from './routes/api/media/images/$id'
 import { Route as ApiMediaProofsIdRouteImport } from './routes/api/media/proofs/$id'
@@ -57,6 +58,11 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronDrawRoute = ApiCronDrawRouteImport.update({
+  id: '/api/cron/draw',
+  path: '/api/cron/draw',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPurchasesPaymentSettingsRoute =
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/auth/complete': typeof AuthCompleteRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/draw': typeof ApiCronDrawRoute
   '/api/purchases/payment-settings': typeof ApiPurchasesPaymentSettingsRoute
   '/api/media/images/$id': typeof ApiMediaImagesIdRoute
   '/api/media/proofs/$id': typeof ApiMediaProofsIdRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/auth/complete': typeof AuthCompleteRoute
   '/dashboard': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/draw': typeof ApiCronDrawRoute
   '/api/purchases/payment-settings': typeof ApiPurchasesPaymentSettingsRoute
   '/api/media/images/$id': typeof ApiMediaImagesIdRoute
   '/api/media/proofs/$id': typeof ApiMediaProofsIdRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/auth/complete': typeof AuthCompleteRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/draw': typeof ApiCronDrawRoute
   '/api/purchases/payment-settings': typeof ApiPurchasesPaymentSettingsRoute
   '/api/media/images/$id': typeof ApiMediaImagesIdRoute
   '/api/media/proofs/$id': typeof ApiMediaProofsIdRoute
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/auth/complete'
     | '/dashboard/'
     | '/api/auth/$'
+    | '/api/cron/draw'
     | '/api/purchases/payment-settings'
     | '/api/media/images/$id'
     | '/api/media/proofs/$id'
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/auth/complete'
     | '/dashboard'
     | '/api/auth/$'
+    | '/api/cron/draw'
     | '/api/purchases/payment-settings'
     | '/api/media/images/$id'
     | '/api/media/proofs/$id'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/auth/complete'
     | '/dashboard/'
     | '/api/auth/$'
+    | '/api/cron/draw'
     | '/api/purchases/payment-settings'
     | '/api/media/images/$id'
     | '/api/media/proofs/$id'
@@ -204,6 +216,7 @@ export interface RootRouteChildren {
   AuthCompleteRoute: typeof AuthCompleteRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiCronDrawRoute: typeof ApiCronDrawRoute
   ApiPurchasesPaymentSettingsRoute: typeof ApiPurchasesPaymentSettingsRoute
   ApiMediaImagesIdRoute: typeof ApiMediaImagesIdRoute
   ApiMediaProofsIdRoute: typeof ApiMediaProofsIdRoute
@@ -262,6 +275,13 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/draw': {
+      id: '/api/cron/draw'
+      path: '/api/cron/draw'
+      fullPath: '/api/cron/draw'
+      preLoaderRoute: typeof ApiCronDrawRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/purchases/payment-settings': {
@@ -324,6 +344,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCompleteRoute: AuthCompleteRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiCronDrawRoute: ApiCronDrawRoute,
   ApiPurchasesPaymentSettingsRoute: ApiPurchasesPaymentSettingsRoute,
   ApiMediaImagesIdRoute: ApiMediaImagesIdRoute,
   ApiMediaProofsIdRoute: ApiMediaProofsIdRoute,

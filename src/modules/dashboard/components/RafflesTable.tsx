@@ -252,14 +252,36 @@ function DrawDialog({
       <p>Fecha ISO: {raffle.drawAt}</p>
       <Feedback pending={result.isPending} error={result.error} />
       {result.data && (
-        <dl>
-          {Object.entries(result.data).map(([key, value]) => (
-            <div key={key}>
-              <dt>{key}</dt>
-              <dd>{String(value)}</dd>
-            </div>
-          ))}
-        </dl>
+        <>
+          <h3>Contacto del ganador (privado)</h3>
+          {'winnerContact' in result.data && result.data.winnerContact ? (
+            <p>
+              {result.data.winnerContact.name} ·{' '}
+              {result.data.winnerContact.phone}{' '}
+              <a
+                href={result.data.winnerContact.whatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                referrerPolicy="no-referrer"
+              >
+                Abrir WhatsApp manualmente
+              </a>
+            </p>
+          ) : (
+            <p>Contacto no disponible (cuenta antigua).</p>
+          )}
+          <p>No se envían mensajes automáticamente.</p>
+          <dl>
+            {Object.entries(result.data)
+              .filter(([key]) => key !== 'winnerContact')
+              .map(([key, value]) => (
+                <div key={key}>
+                  <dt>{key}</dt>
+                  <dd>{String(value)}</dd>
+                </div>
+              ))}
+          </dl>
+        </>
       )}
       <Feedback error={readiness.error} pending={readiness.isPending} />
       {!due && (

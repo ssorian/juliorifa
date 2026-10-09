@@ -17,7 +17,7 @@ function createState() {
   const ready = (async () => {
     const directory = new URL('../../drizzle/', import.meta.url)
     for (const name of readdirSync(directory)
-      .filter((n) => /^000[0-4].*\.sql$/.test(n))
+      .filter((n) => /^\d{4}.*\.sql$/.test(n))
       .sort()) {
       await pg.exec(readFileSync(new URL(name, directory), 'utf8'))
     }

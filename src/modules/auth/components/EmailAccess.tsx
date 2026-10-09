@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { authClient } from '../../../lib/auth-client'
 import { completionPath, safeCheckoutId } from '../lib/policy'
+import { normalizePhone } from '../lib/phone'
 
 export function EmailAccess({
   signup,
@@ -13,6 +14,7 @@ export function EmailAccess({
 }) {
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [busy, setBusy] = useState(false)
@@ -58,6 +60,13 @@ export function EmailAccess({
                 setMessage('Las contraseñas deben coincidir.')
                 return
               }
+              const normalizedPhone = normalizePhone(phone)
+              if (signup && !normalizedPhone) {
+                setMessage(
+                  'Escribe tu teléfono internacional con + y código de país.',
+                )
+                return
+              }
               setBusy(true)
               try {
                 const credentials = {
@@ -69,6 +78,7 @@ export function EmailAccess({
                   ? await authClient.signUp.email({
                       ...credentials,
                       name: name.trim(),
+                      phone: normalizedPhone!,
                     })
                   : await authClient.signIn.email(credentials)
                 if (result.error) {
@@ -95,6 +105,24 @@ export function EmailAccess({
                   maxLength={100}
                   autoComplete="name"
                 />
+              </label>
+            )}
+            {signup && (
+              <label>
+                Teléfono internacional (incluye + y código de país)
+                <input
+                  type="tel"
+                  required
+                  maxLength={40}
+                  autoComplete="tel"
+                  placeholder="+52 55 1234 5678"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+                <small>
+                  Solo contacto manual si ganas; no enviamos mensajes
+                  automáticos.
+                </small>
               </label>
             )}
             <label>

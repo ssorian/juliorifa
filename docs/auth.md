@@ -1,5 +1,17 @@
 # Acceso por correo y contraseña
 
+## Teléfono para nuevos registros — tarea 23
+
+**Writerfix actual:** admin puede consultar teléfono/wa.me manual de solicitudes antes del sorteo; own/public no reciben contacto, legacy NULL permanece sin gate. Fixture seed usa migraciones actuales: full110/110 PASS. Tres cold E2E completos25 checkpoints cada uno,0 pageerrors/hydration y logout PASS (logs `/tmp/juliorifa-writerfix-cold{2,3,4}.log`); fallos globales anteriores quedan como historia, no estado actual. Tsc/build PASS. Sin cuentas reales nuevas ni migración/cron/mensajes reales activados.
+
+Registro público requiere nombre, contraseña/confirmación y **teléfono internacional**, incluyendo + y código de país. Se admiten espacios/paréntesis/guiones de presentación, se almacena normalizado E.164 (+ y 8–15 dígitos, primer dígito no cero); no se infiere país ni se verifica propiedad del número. El middleware servidor Better Auth valida `/sign-up/email` incluso en HTTP directo, antes de crear usuario/sesión; el campo adicional permite persistencia/typing SDK. No afecta `/sign-in/email` ni reservas de cuentas antiguas.
+
+Migración offline `0005_phone_automatic_draw.sql` agrega phone **nullable** y CHECK formato. Sin backfill ni obligación retroactiva: clientes/admin existentes con NULL conservan login/reservas; contacto del ganador legacy dice no disponible. Migración preparada/probada en PGlite, **no aplicada a DB real** en esta tarea. Requiere autorización operativa separada antes de desplegar código que consulta la columna; snapshot0005 generado offline, comparación a esquema actual produce0 sentencias, sin cambiar0004 histórico.
+
+Contacto del ganador solo en resultado admin protegido por rol fresco: nombre/teléfono y enlace wa.me saneado de dígitos. DTO público excluye contacto y referencia de compra. Enlace manual, sin SMS ni mensajes WhatsApp automáticos; teléfono no convierte emailVerified ni habilita recuperación/verificación. Reutilizar checkout/login y Mis apartados: tras confirmación explícita se abre diálogo snapshot/comprobante, sin reserva automática.
+
+Evidencia nueva: tests HTTP Better Auth + Drizzle/PGlite (sin DB real) rechazan teléfono ausente/inválido y persisten normalizado; retirar teléfono de fixture permite login legacy. Tests SSR muestran tel obligatorio solo signup; helper sanea wa.me y devuelve NULL legacy. Harness ejecutado: formulario real→teléfono normalizado persistido→reserva explícita→diálogo snapshot/proof→ganador privado pasa asserts interactivos. Comando global FAIL por1 pageerror fetch/import temprano; no presentar como E2E total aprobado. Evidencia final en [tasks/auth.md](tasks/auth.md). Ninguna cuenta real creada/modificada, ningún secreto leído/editado.
+
 ## Modo actual
 
 Better Auth **1.7.7**, Postgres/Drizzle y cookies nativas autentican clientes y administradores. No se usa Supabase Auth. El SDK Supabase sigue siendo exclusivamente Storage.

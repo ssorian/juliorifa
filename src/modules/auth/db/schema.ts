@@ -16,12 +16,17 @@ export const user = pgTable(
     email: text('email').notNull().unique(),
     emailVerified: boolean('email_verified').notNull().default(false),
     image: text('image'),
+    phone: text('phone'),
     role: text('role').notNull().default('client'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     check('user_role_valid', sql`${table.role} in ('client', 'admin')`),
+    check(
+      'user_phone_valid',
+      sql`${table.phone} is null or ${table.phone} ~ '^\\+[1-9][0-9]{7,14}$'`,
+    ),
   ],
 )
 export const session = pgTable(

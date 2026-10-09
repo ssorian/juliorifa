@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { currentUser } from '../../auth/services/session'
+import { PurchaseDetail } from '../../purchases/components/PurchaseDetail'
+import { reservationDialog } from '../lib/reservation-dialog'
 import { createReservation } from '../../purchases/server'
 import { availableInventory } from '../services/server'
 import { useInventoryPage } from '../hooks/useInventoryPage'
@@ -20,7 +22,10 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
   const [busy, setBusy] = useState(false)
   const [accessId, setAccessId] = useState<string | null>(null)
   const dialog = useRef<HTMLDialogElement>(null)
+  const [actorId, setActorId] = useState<string | null>(null)
+  const [reservedId, setReservedId] = useState<string | null>(null)
   const queryClient = useQueryClient()
+  const paymentDialog = reservationDialog(reservedId, actorId)
   const open = inventory.data?.salesOpen === true && !cart.restoring
   const pad = (n: number) =>
     ticketLabel(n, raffle.startNumber, raffle.ticketCount)
@@ -102,6 +107,8 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
     try {
       const id = await cart.persist()
       const user = await currentUser()
+      setReservedId(null)
+      setActorId(user?.id ?? null)
       setAccessId(user ? null : id)
       dialog.current?.showModal()
     } catch {
@@ -121,7 +128,13 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
         data: { raffleId: raffle.id, tickets: selected, idempotencyKey: id },
       })
       cart.clear()
-      window.location.assign(`/mis-compras?id=${purchase.id}`)
+      setReservedId(purchase.id)
+      void queryClient.invalidateQueries({
+        queryKey: ['public-inventory', raffle.id],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['own-purchases', actorId],
+      })
     } catch (e) {
       cart.setMessage(errorMessage(e))
       dialog.current?.close()
@@ -297,7 +310,22 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
         <button onClick={() => dialog.current?.close()} disabled={busy}>
           Cerrar ×
         </button>
-        {accessId ? (
+        {paymentDialog ? (
+          <>
+            <h2 id="checkout-title">Apartado confirmado</h2>
+            <p>
+              Transfiere el importe indicado y sube tu comprobante. El pago
+              requiere confirmación manual.
+            </p>
+            <PurchaseDetail
+              userId={paymentDialog.userId}
+              id={paymentDialog.id}
+            />
+            <a href={`/mis-compras?id=${reservedId}`}>
+              Continuar en Mis apartados
+            </a>
+          </>
+        ) : accessId ? (
           <>
             <h2 id="checkout-title">Ingresa para continuar</h2>
             <p>

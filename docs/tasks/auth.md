@@ -1,5 +1,23 @@
 # Auth cliente/admin — tarea 21
 
+## Tarea 23 — teléfono nuevo registro, contacto privado y checkout inmediato
+
+### Writerfix actual — evidencia nueva
+
+RED local: seed con solo0000 falla `column phone does not exist`; PurchaseFacts SSR no muestra aviso/contacto manual. GREEN focal5/5 tras migraciones ordenadas y DTO admin protegido con teléfono/wa.me previo al sorteo. FULL110/110 PASS, TypeScript/build PASS. E2E cold2/3/4 completos exit0,25 checkpoints cada uno,0 pageerrors/hydration y logout; incluye cliente denegado/own sin customer ni phone antes de aprobar/sortear. Logs `/tmp/juliorifa-writerfix-full-suite-final.log`, `/tmp/juliorifa-writerfix-cold{2,3,4}.log`, `/tmp/juliorifa-writerfix-build.log`. Cold readiness/preoptimización solucionan late discovery504 sin filtros/mocks/limiter debilitado. Ejecuciones interrumpidas no cuentan PASS; FAIL abajo es histórico superado.
+
+Persisten404 de imagen según headers de request dev (mismo objeto200 Accept genérico/404 imagen navegador), no ocultados ni corregidos mediante cambios productivos ajenos. Sin cuentas/secretos/DB real; cron requiere deploy/configuración aparte.
+
+- [x] Criterios: obligatorio SOLO signup, validación servidor/formulario, E.164 internacional, nullable legacy sin gate login/reservas; no SMS ni WhatsApp automático, no contacto público.
+- [x] Better Auth additionalField y middleware de signup; SDK inferAdditionalFields tipado sin importar servidor en runtime. Helper feature-owned auth normaliza sin inferir país; DB CHECK permite NULL legacy.
+- [x] Ganador admin por join compra/user tras requireAdmin, wa.me manual saneado; NULL legacy contacto no disponible. Cron source automatic/actor NULL no usa credenciales/admin arbitrario.
+- [x] Checkout confirmado mantiene diálogo pago/comprobante existente y Mis apartados; selección/login/idempotencia/confirmación explícita conservados.
+- [x] RED inicial phone.test: módulo ausente antes de implementar. GREEN HTTP real Better Auth/PGlite:400 ausente/inválido,200 válido y normalizado persistido,200 login después de convertir phone=NULL. SSR tel required solo signup; helper rechaza URLs/control/inyección y limita formato.
+- [x] Validación focal27/27, tsc PASS. Harness actualizado: migración0005 en memoria, signup con teléfono, diálogo snapshot/proof, contacto ganador privado y cron automático autorizado/idempotente. Primera ejecución nueva llegó a confirmación/login existente; falló selector exacto de teléfono por texto auxiliar del label, corregido a nombre accesible prefijado. También pageerror fetch/import previo a cache aislada; no afirmar recorrido nuevo completo por HTML ni checks parciales.
+- [ ] Segunda/tercera ejecución harness completa el nuevo viaje interactivo y cron HTTP automático/idempotente, pero comando global FAIL por1 pageerror fetch/import temprano (esperado0). No ocultado ni marcado PASS global. Validación independiente/build pendientes. Config fixture autorizado envDir:false, cacheDir /tmp por PID y CRON_SECRET dummy; no carga archivos env de usuario ni comparte caché dev principal.
+
+Migración SQL/journal offline, no DB real/cuentas reales/secretos/instalaciones/commits. Snapshot0005 generado offline (1645 líneas metadata tras formato); comparación a esquema produce0 sentencias, sin modificar snapshot0004. Detalles operativos en [auth.md](../auth.md) y [backend.md](../backend.md); no cron activado sin deploy+CRON_SECRET.
+
 ## Tarea 22 — compatibilidad de login
 
 Login requiere 1–128 caracteres para verificar credenciales ya almacenadas; registro y confirmación conservan 12–128. Copy de longitud mínima solo en registro. **Tarea 22 completa en desarrollo:** bootstrap privado autorizado ejecutado, sin API pública nueva: cuenta administrativa proporcionada creada en `user`/`account`, rol admin, correo no verificado y hash nativo Better Auth 1.7.7 verificado contra DB antes del COMMIT. Sin filas de sesión ni login HTTP real comprobado. DDL 0000–0004 aplicado: cinco migraciones registradas, 17 tablas `public` confirmadas; producción requiere autorización separada.
