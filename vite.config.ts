@@ -11,7 +11,15 @@ const config = defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
     devtools(),
-    nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+    nitro({
+      handlers: [
+        {
+          route: '/api/media/images/**',
+          handler: './src/lib/storage/media-handler.ts',
+        },
+      ],
+      rollupConfig: { external: [/^@sentry\//] },
+    }),
     tailwindcss(),
     tanstackStart(),
     viteReact(),

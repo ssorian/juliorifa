@@ -4,9 +4,12 @@ import { useOwnPurchase, useOwnAudit } from '../hooks/useOwnPurchases'
 import { ownKey, purchaseFlags } from '../lib/presentation'
 import { cancelReservation } from '../server'
 import { PurchaseSummary } from './PurchaseSummary'
+import { ProofUpload } from './ProofUpload'
 import { usePublicDraw } from '../../raffles/hooks/usePublicRaffles'
 import { errorMessage } from '../../raffles/lib/presentation'
 import type { PurchaseDTO } from '../types'
+import { copyText } from '../lib/clipboard'
+import { formatDate } from '../../../lib/utils/date'
 
 export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
   const query = useOwnPurchase(userId, id, true)
@@ -43,10 +46,11 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
       !file.size
     ) {
       setMessage('Selecciona PNG, JPEG, WebP o PDF, máximo 10 MB.')
-      return
+      return false
     }
     setBusy(true)
     setMessage('Enviando comprobante…')
+    let received = false
     try {
       const response = await fetch(`/api/uploads/proofs/${id}`, {
         method: 'POST',
@@ -66,6 +70,7 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
           )
         }
       } else {
+        received = true
         setMessage(
           'Comprobante recibido. Consulta el estado actualizado; el pago requiere revisión manual.',
         )
@@ -75,9 +80,26 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
         'No pudimos confirmar el envío. Actualiza antes de reintentar.',
       )
     } finally {
-      await refresh()
-      setBusy(false)
+      try {
+        await refresh()
+      } catch {
+        setMessage(
+          'No pudimos actualizar el estado. Consulta el apartado antes de reintentar.',
+        )
+      } finally {
+        setBusy(false)
+      }
     }
+    return received
+  }
+  async function copy(value: string, label: string) {
+    setMessage('Copiando…')
+    const copied = await copyText(value)
+    setMessage(
+      copied
+        ? `${label}: copiado.`
+        : `No pudimos copiar ${label.toLowerCase()}. Selecciona y copia el valor manualmente.`,
+    )
   }
   async function cancel() {
     setBusy(true)
@@ -91,8 +113,15 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
     } catch (e) {
       setMessage(errorMessage(e))
     } finally {
-      await refresh()
-      setBusy(false)
+      try {
+        await refresh()
+      } catch {
+        setMessage(
+          'No pudimos actualizar el estado. Consulta el apartado antes de reintentar.',
+        )
+      } finally {
+        setBusy(false)
+      }
     }
   }
   if (query.isPending) return <p role="status">Cargando apartado…</p>
@@ -123,46 +152,32 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
               : `Tiempo restante: ${Math.floor(seconds / 3600)} h ${Math.floor((seconds % 3600) / 60)} min`}
         </p>
       )}
-      <button
-        onClick={() =>
-          void navigator.clipboard
-            .writeText(p.id)
-            .then(() => setMessage('Referencia copiada.'))
-            .catch(() => setMessage('No pudimos copiar la referencia.'))
-        }
-      >
+      <button onClick={() => void copy(p.id, 'Referencia')}>
         Copiar referencia
       </button>
       {p.paymentInstructions && (
         <button
-          onClick={() =>
-            void navigator.clipboard
-              .writeText(p.paymentInstructions!.account)
-              .then(() => setMessage('Cuenta copiada.'))
-              .catch(() => setMessage('No pudimos copiar la cuenta.'))
-          }
+          onClick={() => void copy(p.paymentInstructions!.account, 'Cuenta')}
         >
           Copiar cuenta
         </button>
       )}
-      <button disabled={busy} onClick={() => void refresh()}>
+      <button
+        onClick={() => void copy((p.totalCents / 100).toFixed(2), 'Importe')}
+      >
+        Copiar importe
+      </button>
+      <button
+        disabled={busy}
+        onClick={() =>
+          void refresh().catch(() =>
+            setMessage('No pudimos actualizar el estado.'),
+          )
+        }
+      >
         Actualizar
       </button>
-      {flags.upload && (
-        <label className="proof-upload">
-          Subir comprobante (PNG, JPEG, WebP o PDF; máximo 10 MB)
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp,application/pdf"
-            disabled={busy}
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              e.target.value = ''
-              if (file) void upload(file)
-            }}
-          />
-        </label>
-      )}
+      {flags.upload && <ProofUpload key={id} busy={busy} onSend={upload} />}
       {flags.cancel && (
         <button
           disabled={busy}
@@ -195,7 +210,7 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
       <ul>
         {audit.data?.map((event, i) => (
           <li key={i}>
-            {event.createdAt} · {event.type}
+            {formatDate(event.createdAt)} · {event.type}
             {event.reason && <> · Motivo: {event.reason}</>}
           </li>
         ))}
@@ -214,7 +229,7 @@ function Winner({ purchase }: { purchase: PurchaseDTO }) {
   return (
     <p role="status">
       Este apartado contiene el boleto ganador {draw.data.winnerTicket}. Sorteo:{' '}
-      {draw.data.drawnAt}.
+      {formatDate(draw.data.drawnAt)}.
     </p>
   )
 }

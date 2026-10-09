@@ -23,6 +23,8 @@ test('public catalog SSR uses server cents and zero-based safe DTO without fake 
   const html = renderToStaticMarkup(<Catalog raffles={[r]} />)
   assert.match(html, /1[.,]99/)
   assert.match(html, /Rifa fixture/)
+  assert.match(html, /2 ene 2026, 18:00/)
+  assert.doesNotMatch(html, /2026-01-03T/)
   assert.match(html, /Consulta disponibilidad actual/)
   assert.doesNotMatch(html, /DEMO|SIMULAR|userId|feeBps|proofKey|ganador@/)
   const empty = renderToStaticMarkup(<Catalog raffles={[]} />)

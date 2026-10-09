@@ -3,8 +3,7 @@ import { authClient } from '../../lib/auth-client'
 import BetterAuthHeader from '../../integrations/better-auth/header-user'
 import { useOwnPurchases } from './hooks/useOwnPurchases'
 import { PurchaseDetail } from './components/PurchaseDetail'
-import { statusLabel } from './lib/presentation'
-import { money } from '../../lib/utils/money'
+import { PurchaseCard } from './components/PurchaseCard'
 import { errorMessage } from '../raffles/lib/presentation'
 import './react.css'
 
@@ -53,22 +52,7 @@ export function PurchasesPage({
             )}
             <div className="purchase-list">
               {list.data?.map((p) => (
-                <article key={p.id}>
-                  <h2>
-                    <a href={`/mis-compras?id=${p.id}`}>{p.id}</a>
-                  </h2>
-                  <p>{statusLabel(p.status)}</p>
-                  <p>
-                    {p.tickets.length} boletos · {money(p.totalCents)} MXN
-                  </p>
-                  <p>{p.createdAt}</p>
-                  <a
-                    className="button secondary"
-                    href={`/mis-compras?id=${p.id}`}
-                  >
-                    Ver apartado
-                  </a>
-                </article>
+                <PurchaseCard key={p.id} purchase={p} />
               ))}
             </div>
             <div className="input-row">

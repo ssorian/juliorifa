@@ -350,9 +350,15 @@ try {
       'Sec-Fetch-Dest': 'image',
     },
   })
-  console.log(
-    `CHECK same image API generic Accept=${primaryImageRead.status()} browser image Accept=${imageAcceptRead.status()}`,
+  assert.equal(imageAcceptRead.status(), 200)
+  assert.match(imageAcceptRead.headers()['content-type'], /^image\//)
+  await page.setContent(
+    `<img src="${base + image.mediaUrl}" alt="image regression">`,
   )
+  await page.waitForFunction(() => {
+    const element = document.querySelector('img')!
+    return element.complete && element.naturalWidth > 0
+  })
   console.log(
     'PASS real admin draft, raw PNG validation, memory storage and publish',
   )
@@ -465,6 +471,16 @@ try {
   assert.equal(reviewing.customer, undefined)
   await page.reload()
   await page.waitForLoadState('networkidle')
+  const progress = page.getByRole('region', {
+    name: 'Seguimiento del apartado',
+  })
+  await progress.getByText('Pago por confirmar', { exact: true }).waitFor()
+  assert.ok(!(await progress.innerText()).includes('Pago confirmado'))
+  assert.ok(
+    (await page.locator('body').innerText()).includes(
+      'sin vencimiento automático',
+    ),
+  )
   const secondary = await rpc(purchaseModule, 'createReservation', {
     raffleId: raffle.id,
     tickets: [1],
@@ -641,6 +657,18 @@ try {
   console.log(
     'PASS real approval, duplicate outbox stability and immutable bank snapshot',
   )
+  await context.clearCookies()
+  await context.addCookies(clientCookies)
+  await page.goto(base + `/mis-compras?id=${original.id}`)
+  await page
+    .getByRole('region', { name: 'Seguimiento del apartado' })
+    .getByText('Pago confirmado', { exact: true })
+    .waitFor()
+  await context.clearCookies()
+  await context.addCookies(adminCookies)
+  await page.goto(base + `/#rifa/${raffle.id}`)
+  const drawStatus = page.getByRole('region', { name: 'Estado del sorteo' })
+  await drawStatus.getByText('Sorteo programado', { exact: true }).waitFor()
   stage = 'paid-only cryptographic draw and repeat stability'
   const due = new Date(Date.now() - 1000).toISOString()
   await rpc(raffleModule, 'updateRaffle', {
@@ -650,6 +678,9 @@ try {
     salesDeadline: due,
     drawAt: due,
   })
+  await page.reload()
+  await drawStatus.getByText('Sorteo pendiente', { exact: true }).waitFor()
+  assert.ok(!(await drawStatus.innerText()).includes('Boleto ganador'))
   const beforeDraw = await (await helper('counts')).json()
   assert.equal(
     (await context.request.get(base + '/api/cron/draw')).status(),
@@ -687,6 +718,10 @@ try {
   assert.equal(adminDraw.actorId, null)
   const publicDraw = await rpc(raffleModule, 'publicDraw', { id: raffle.id })
   assert.ok(!JSON.stringify(publicDraw).includes('@'))
+  await drawStatus.getByRole('button', { name: 'Actualizar resultado' }).click()
+  await drawStatus.getByText('Boleto ganador: 0', { exact: true }).waitFor()
+  assert.ok((await drawStatus.innerText()).includes('Realizado el:'))
+  await page.goto(base + '/dashboard#compras')
   console.log('PASS actual crypto draw, repeat result and public no-email DTO')
   stage = 'actual outbox rejects unverified recipient claims'
   const delivery = await (await helper('pump', 'POST')).json()
@@ -1268,12 +1303,89 @@ try {
     .getByRole('link', { name: 'Continuar en Mis apartados', exact: true })
     .getAttribute('href')
   const signupOrderId = new URL(ownLink, base).searchParams.get('id')
+  let proofPosts = 0
+  signupPage.on('request', (request: any) => {
+    if (
+      request.method() === 'POST' &&
+      request.url().includes('/api/uploads/proofs/')
+    )
+      proofPosts++
+  })
+  const proofInput = payment.getByLabel(
+    'Subir comprobante (PNG, JPEG, WebP o PDF; máximo 10 MB)',
+    { exact: true },
+  )
+  await proofInput.setInputFiles({
+    name: 'invalid.html',
+    mimeType: 'text/html',
+    buffer: Buffer.from('invalid'),
+  })
+  await payment.getByRole('alert').waitFor()
+  assert.equal(proofPosts, 0)
   await payment
     .getByLabel('Subir comprobante (PNG, JPEG, WebP o PDF; máximo 10 MB)', {
       exact: true,
     })
     .setInputFiles({ name: 'proof.png', mimeType: 'image/png', buffer: png })
+  await payment
+    .getByAltText('Vista previa del comprobante seleccionado')
+    .waitFor()
+  assert.equal(
+    (
+      await rpc(
+        purchaseModule,
+        'ownPurchase',
+        { id: signupOrderId },
+        signupPage,
+      )
+    ).status,
+    'awaiting_proof',
+  )
+  const firstPreview = await payment
+    .getByAltText('Vista previa del comprobante seleccionado')
+    .getAttribute('src')
+  await proofInput.setInputFiles({
+    name: 'replacement.png',
+    mimeType: 'image/png',
+    buffer: png,
+  })
+  await signupPage.waitForFunction(
+    (previous: string) =>
+      document.querySelector<HTMLImageElement>(
+        'img[alt="Vista previa del comprobante seleccionado"]',
+      )?.src !== previous,
+    firstPreview,
+  )
+  assert.equal(
+    await signupPage.evaluate(async (url: string) => {
+      try {
+        await fetch(url)
+        return false
+      } catch {
+        return true
+      }
+    }, firstPreview),
+    true,
+  )
+  assert.equal(proofPosts, 0, 'selection and replacement never POST')
+  await signupPage.route(
+    `**/api/uploads/proofs/${signupOrderId}`,
+    async (route: any) => {
+      const committed = await route.fetch()
+      assert.equal(committed.status(), 200)
+      await route.abort()
+    },
+  )
+  await payment
+    .getByRole('button', { name: 'Enviar comprobante', exact: true })
+    .dblclick()
   await payment.getByText('Por confirmar', { exact: true }).waitFor()
+  await signupPage.unroute(`**/api/uploads/proofs/${signupOrderId}`)
+  assert.equal(
+    proofPosts,
+    1,
+    'double confirmation and uncertain response never replay POST',
+  )
   const signupOwn = await rpc(
     purchaseModule,
     'ownPurchase',
@@ -1472,6 +1584,7 @@ try {
   }
   console.log('PASS desktop/mobile public/account/admin document overflow')
   console.log(`CHECK image endpoint failures: ${imageFailures.length}`)
+  assert.equal(imageFailures.length, 0)
   assert.equal(pageErrors, 0, 'browser page errors')
   assert.equal(hydrationErrors, 0, 'browser hydration errors')
   console.log('PASS no browser pageerror/hydration diagnostics')

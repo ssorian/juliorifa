@@ -10,6 +10,39 @@
   --heading: Condensed, Arial, sans-serif;
   --body: Condensed, Arial, sans-serif;
 }
+.purchase-progress,
+.nova-public .draw-status {
+  border: 1px solid #55405f;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  overflow-wrap: anywhere;
+}
+.purchase-progress ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+.purchase-progress li {
+  border-top: 3px solid #555;
+  padding-top: 0.75rem;
+}
+.purchase-progress li[data-complete='true'] {
+  border-color: #ad80ff;
+}
+.purchase-progress li[aria-current='step'] {
+  font-weight: bold;
+}
+.purchase-progress li span {
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+.purchase-terminal {
+  border-left: 3px solid #ff293f;
+  padding-left: 0.75rem;
+}
 .nova-public .product-image-link {
   width: 100%;
   padding: 0;

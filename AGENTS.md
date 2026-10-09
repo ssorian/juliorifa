@@ -131,8 +131,10 @@ git diff --check
 - Evidencia de cierre de tarea 23: **110/110 pruebas, 25 checkpoints cold, pageErrors=0, hydrationErrors=0, logout correcto, tipos/build PASS**. ESLint de archivos tocados: cero errores y una advertencia `no-shadow` histórica.
 - Revalidar según el cambio; resultados históricos no acreditan un candidato nuevo. No afirmar carreras PostgreSQL multiconexión, privacidad real del bucket, deployment ni entrega de mensajes por pruebas aisladas.
 
-## Pendiente conocido fuera de la tarea 23
+## Imágenes en desarrollo — diagnóstico corregido tras la tarea 23
 
-Imágenes en navegador dev: 18 respuestas 404 observadas; el mismo recurso responde 200 con request genérico y 404 con headers de imagen (`Accept`/`Sec-Fetch-Dest`). Comportamiento previo, diagnóstico definitivo/corrección pendientes. No declararlo correcto ni ocultarlo para aprobar pruebas; tampoco atribuirlo sin evidencia a la nueva lógica de apartados/contacto/cron.
+Los 18 errores 404 se aislaron en `Sec-Fetch-Dest: image`: Nitro dev clasificaba la petición como asset y omitía el renderer SSR del endpoint; `Accept` de imagen por sí solo no fallaba. `vite.config.ts` registra ahora únicamente `/api/media/images/**`, con `src/lib/storage/media-handler.ts` reenviando el Request intacto al SSR existente. Autorización, validación, Storage y redirect 302 no cambian.
+
+Verificación independiente en el harness aislado: requests genéricos y con headers de imagen responden 200 al seguir el redirect; `<img>` real tiene `naturalWidth > 0` y `imageFailures=0`. Esto no acredita ACL real de Supabase ni despliegue. Si aparecen nuevos fallos, conservar sus diagnósticos: no ocultarlos para aprobar pruebas ni atribuirlos a pagos/contacto/cron sin evidencia.
 
 Referencias de contexto y evidencia: `docs/backend.md`, `docs/auth.md`, `docs/tasks/backend.md`, `docs/tasks/auth.md` y `docs/tasks/html-adaptation.md`. Las secciones históricas pueden describir mecanismos retirados; prevalecen código actual y cierre vigente, no conteos antiguos o una infraestructura nunca activada.

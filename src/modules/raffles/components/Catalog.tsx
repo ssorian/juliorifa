@@ -1,3 +1,4 @@
+import { formatDate } from '../../../lib/utils/date'
 import { money } from '../../../lib/utils/money'
 import type { PublicRaffleDTO } from '../types/public'
 
@@ -48,7 +49,7 @@ export function Catalog({ raffles }: { raffles: PublicRaffleDTO[] }) {
                   <span className="raffle-date">
                     Sorteo
                     <br />
-                    {r.drawAt}
+                    {formatDate(r.drawAt)}
                   </span>
                 </div>
                 <p>

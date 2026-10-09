@@ -1,4 +1,6 @@
+import { PurchaseProgress } from './PurchaseProgress'
 import { money } from '../../../lib/utils/money'
+import { formatDate } from '../../../lib/utils/date'
 import { statusLabel } from '../lib/presentation'
 import type { PurchaseDTO } from '../types'
 
@@ -8,17 +10,20 @@ export function PurchaseSummary({ purchase }: { purchase: PurchaseDTO }) {
     <>
       <h2>Apartado {p.id}</h2>
       <p role="status">{statusLabel(p.status)}</p>
-      <p>Creado: {p.createdAt}</p>
+      <PurchaseProgress purchase={p} />
+      <p>Creado: {formatDate(p.createdAt)}</p>
       <p>
         Importe de transferencia: <strong>{money(p.totalCents)} MXN</strong>
       </p>
       <p>
         {p.tickets.length} boletos · {p.tickets.join(' · ')}
       </p>
-      {p.reviewedAt && <p>Revisado: {p.reviewedAt}</p>}
-      {p.proofReceivedAt && <p>Comprobante recibido: {p.proofReceivedAt}</p>}
+      {p.reviewedAt && <p>Revisado: {formatDate(p.reviewedAt)}</p>}
+      {p.proofReceivedAt && (
+        <p>Comprobante recibido: {formatDate(p.proofReceivedAt)}</p>
+      )}
       {p.status === 'awaiting_proof' && (
-        <p>Fecha límite para subir comprobante: {p.expiresAt}</p>
+        <p>Fecha límite para subir comprobante: {formatDate(p.expiresAt)}</p>
       )}
       {p.status === 'reviewing' && (
         <p>

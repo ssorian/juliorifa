@@ -1,4 +1,6 @@
+import { formatDate } from '../../../lib/utils/date'
 import { money } from '../../../lib/utils/money'
+import { DrawStatus } from './DrawStatus'
 import { TicketSelection } from './TicketSelection'
 import { usePublicDraw } from '../hooks/usePublicRaffles'
 import type { PublicRaffleDTO } from '../types/public'
@@ -35,15 +37,15 @@ export function ProductDetail({ raffle }: { raffle: PublicRaffleDTO }) {
                 <strong className="price">{money(raffle.priceCents)}</strong>
               </div>
               <div>
-                <span>Fecha de sorteo</span>
-                <strong>{raffle.drawAt}</strong>
+                <span>Fecha programada</span>
+                <strong>{formatDate(raffle.drawAt)}</strong>
               </div>
               <div>
                 <span>Boletos</span>
                 <strong>{raffle.ticketCount}</strong>
               </div>
             </div>
-            <p>Cierre de venta: {raffle.salesDeadline}</p>
+            <p>Cierre de venta: {formatDate(raffle.salesDeadline)}</p>
             <dl className="spec-grid">
               {raffle.features.map((f, i) => (
                 <div key={i}>
@@ -52,13 +54,13 @@ export function ProductDetail({ raffle }: { raffle: PublicRaffleDTO }) {
                 </div>
               ))}
             </dl>
-            {draw.isError && (
-              <p role="alert">
-                No pudimos consultar el resultado.{' '}
-                <button onClick={() => void draw.refetch()}>Reintentar</button>
-              </p>
-            )}
-            {draw.data && <PublicResult result={draw.data} />}
+            <DrawStatus
+              drawAt={raffle.drawAt}
+              result={draw.data}
+              isSuccess={draw.isSuccess}
+              isError={draw.isError}
+              onRefresh={() => void draw.refetch()}
+            />
             <p className="detail-bottom-note">
               Apartado de 24 horas para enviar comprobante. Revisión manual;
               solo pagos aprobados participan.{' '}
@@ -69,18 +71,5 @@ export function ProductDetail({ raffle }: { raffle: PublicRaffleDTO }) {
         <TicketSelection key={raffle.id} raffle={raffle} />
       </div>
     </section>
-  )
-}
-function PublicResult({
-  result,
-}: {
-  result: NonNullable<ReturnType<typeof usePublicDraw>['data']>
-}) {
-  return (
-    <div role="status">
-      <h2>Resultado del sorteo</h2>
-      <p>Boleto ganador: {result.winnerTicket}</p>
-      <p>Fecha: {result.drawnAt}</p>
-    </div>
   )
 }
