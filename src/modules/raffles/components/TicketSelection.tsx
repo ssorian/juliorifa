@@ -4,7 +4,8 @@ import { currentUser } from '../../auth/services/session'
 import { PurchaseDetail } from '../../purchases/components/PurchaseDetail'
 import { reservationDialog } from '../lib/reservation-dialog'
 import { createReservation } from '../../purchases/server'
-import { availableInventory } from '../services/server'
+import { availableInventory, suggestedTickets } from '../services/server'
+import { useSuggestedTickets, useRaffleAvailability, useRaffleAvailabilityRefresh } from '../hooks/useRaffleAvailability'
 import { useInventoryPage } from '../hooks/useInventoryPage'
 import { useCheckoutIntent } from '../hooks/useCheckoutIntent'
 import { money } from '../../../lib/utils/money'
@@ -16,6 +17,9 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
   const { selected, setSelected } = cart
   const [from, setFrom] = useState(raffle.startNumber)
   const inventory = useInventoryPage(raffle.id, from)
+  const availability = useRaffleAvailability(raffle.id)
+  const suggestions = useSuggestedTickets(raffle.id, selected)
+  const refreshAvailability = useRaffleAvailabilityRefresh(raffle.id)
   const [search, setSearch] = useState('')
   const [result, setResult] = useState<number | null>(null)
   const [quantity, setQuantity] = useState(10)
@@ -26,7 +30,9 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
   const [reservedId, setReservedId] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const paymentDialog = reservationDialog(reservedId, actorId)
-  const open = inventory.data?.salesOpen === true && !cart.restoring
+  const open = inventory.isSuccess && inventory.data.salesOpen === true &&
+    suggestions.isSuccess && suggestions.data.salesOpen === true &&
+    availability.isSuccess && availability.data.salesOpen === true && !cart.restoring
   const pad = (n: number) =>
     ticketLabel(n, raffle.startNumber, raffle.ticketCount)
   function toggle(n: number) {
@@ -36,6 +42,7 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
   }
   async function find(event: React.FormEvent) {
     event.preventDefault()
+    if (!open || busy) return
     setResult(null)
     const n = parseTicket(search, raffle.startNumber, raffle.ticketCount)
     if (n === null) {
@@ -44,9 +51,9 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
     }
     setBusy(true)
     try {
-      const page = await availableInventory({
+      const page = await refreshAvailability(() => availableInventory({
         data: { id: raffle.id, from: n, limit: 1 },
-      })
+      }))
       if (page.salesOpen && page.tickets[0]?.state === 'available') {
         setResult(n)
         cart.setMessage(
@@ -61,6 +68,7 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
   }
   async function random(event: React.FormEvent) {
     event.preventDefault()
+    if (!open || busy) return
     if (
       !Number.isInteger(quantity) ||
       quantity < 1 ||
@@ -71,25 +79,17 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
     }
     setBusy(true)
     try {
-      const range = Math.max(1, raffle.ticketCount)
-      const start = raffle.startNumber + Math.floor(Math.random() * range)
-      const page = await availableInventory({
-        data: { id: raffle.id, from: start, limit: 1000 },
-      })
+      const page = await refreshAvailability(() => suggestedTickets({
+        data: { id: raffle.id, exclude: selected, limit: quantity },
+      }))
       if (!page.salesOpen) {
         cart.setMessage('La venta está cerrada.')
         return
       }
-      const pool = page.tickets
-        .filter((t) => t.state === 'available' && !selected.includes(t.number))
-        .map((t) => t.number)
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[pool[i], pool[j]] = [pool[j], pool[i]]
-      }
+      const pool = page.suggestions
       if (pool.length < quantity) {
         cart.setMessage(
-          `Esta página tiene ${pool.length} disponibles sin seleccionar. Prueba otra página o una cantidad menor.`,
+          `Hay ${page.eligible} disponibles sin seleccionar en toda la rifa. Elige una cantidad menor.`,
         )
         return
       }
@@ -153,19 +153,36 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
           <h2>
             ELIGE TUS <em>BOLETOS.</em>
           </h2>
-          <p>{money(raffle.priceCents)} MXN por boleto</p>
+          <p>{money(raffle.priceCents)} MXN por boleto · {pad(raffle.startNumber)}–{pad(raffle.startNumber + raffle.ticketCount - 1)}</p>
         </div>
         {cart.restoring && <p role="status">Revalidando selección…</p>}
         {inventory.isPending && <p role="status">Consultando inventario…</p>}
         {inventory.isError && (
           <p role="alert">
             {errorMessage(inventory.error)}{' '}
-            <button onClick={() => void inventory.refetch()}>Reintentar</button>
+            <button onClick={() => void refreshAvailability(() => inventory.refetch())}>Reintentar</button>
           </p>
         )}
-        {inventory.data && !inventory.data.salesOpen && (
+        {(inventory.data?.salesOpen === false || availability.data?.salesOpen === false || suggestions.data?.salesOpen === false) && (
           <p role="status">Venta cerrada. No puedes apartar.</p>
         )}
+        <div className="lucky-heading">
+          <h3>NÚMEROS SUGERIDOS</h3>
+          <button className="text-button" disabled={!open || busy || suggestions.isFetching}
+            onClick={() => void refreshAvailability(() => suggestions.refetch())}>↻ Otros números</button>
+        </div>
+        <p className="help-text">Disponibles en toda la rifa; ninguna sugerencia mejora tus probabilidades.</p>
+        {suggestions.isPending && <p role="status">Consultando sugerencias…</p>}
+        {suggestions.isError && <p role="alert">{errorMessage(suggestions.error)} <button onClick={() => void refreshAvailability(() => suggestions.refetch())}>Reintentar sugerencias</button></p>}
+        <div className="lucky-grid" aria-label="Números sugeridos">
+          {!suggestions.isError && suggestions.data?.suggestions.map(n => (
+            <button key={n} className="ticket-number" disabled={!open || busy}
+              aria-pressed={selected.includes(n)} onClick={() => toggle(n)}>{pad(n)}</button>
+          ))}
+        </div>
+        {suggestions.isSuccess && !suggestions.data.suggestions.length && <p role="status">No hay sugerencias disponibles sin seleccionar.</p>}
+        <details className="inventory-details">
+        <summary>Ver inventario paginado</summary>
         <h3>INVENTARIO · {pad(from)}</h3>
         <p className="help-text">
           Solo los números disponibles se pueden elegir. No quedan reservados
@@ -204,10 +221,12 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
           >
             Siguiente
           </button>
-          <button onClick={() => void inventory.refetch()}>
+          <button onClick={() => void refreshAvailability(() => inventory.refetch())}>
             Actualizar inventario
           </button>
         </div>
+        </details>
+        <div className="ticket-divider">O ELIGE A TU MANERA</div>
         <form className="search-form" onSubmit={find}>
           <label htmlFor="number">Busca tu número especial</label>
           <div className="input-row">
@@ -236,7 +255,7 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
         )}
         <form className="quantity-form" onSubmit={random}>
           <label htmlFor="quantity">
-            Sugerencias aleatorias de una página disponible
+            ¿Prefieres elegir una cantidad?
           </label>
           <div className="input-row">
             <input
@@ -251,9 +270,10 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
               AGREGAR
             </button>
           </div>
+          <p className="help-text">Agrega números disponibles de toda la rifa.</p>
           <div className="quantity-presets">
             {[10, 50, 100].map((n) => (
-              <button type="button" key={n} onClick={() => setQuantity(n)}>
+              <button type="button" key={n} disabled={!open || busy} onClick={() => setQuantity(n)}>
                 {n} boletos
               </button>
             ))}
@@ -266,7 +286,7 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
           <h3>
             TUS BOLETOS <span>{selected.length}</span>
           </h3>
-          <button onClick={() => setSelected([])} disabled={busy}>
+          <button onClick={() => setSelected([])} disabled={busy || cart.restoring}>
             Limpiar
           </button>
         </div>
@@ -286,14 +306,15 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
             <p>Todavía no eliges números.</p>
           )}
         </div>
-        <div className="detail-stats">
-          <span>ESTIMADO · {selected.length} BOLETOS</span>
-          <strong>{money(selected.length * raffle.priceCents)} MXN</strong>
-        </div>
-        <p>
+        <p className="help-text">
           El importe definitivo y las instrucciones bancarias se guardan en el
           apartado. Sin recargo ni cobro automático.
         </p>
+        <div className="selection-summary">
+        <div>
+          <span>ESTIMADO · {selected.length} BOLETOS</span>
+          <strong>{money(selected.length * raffle.priceCents)} MXN</strong>
+        </div>
         <button
           className="button primary"
           disabled={!selected.length || !open || busy}
@@ -301,6 +322,7 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
         >
           CONTINUAR
         </button>
+        </div>
       </div>
       <dialog
         ref={dialog}

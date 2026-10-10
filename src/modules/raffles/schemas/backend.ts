@@ -87,6 +87,11 @@ export const ticketsInput = z
     tickets: z.array(z.int().min(0)).min(1).max(1000),
   })
   .strict()
+export const availabilityInput = idInput.extend({
+  limit: z.int().min(1).max(1000).default(8),
+  exclude: z.array(z.int().min(0).max(2147483647)).max(1000).default([])
+    .refine(numbers => new Set(numbers).size === numbers.length, 'Duplicate exclusions'),
+}).strict()
 export const inventoryInput = z
   .object({
     id: z.uuid(),

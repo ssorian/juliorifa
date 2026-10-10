@@ -6,11 +6,14 @@ import {
   updateInput,
   ticketsInput,
   inventoryInput,
+  availabilityInput,
   adminListInput,
 } from '../schemas/backend'
 import { safe } from '../../purchases/repository'
 import * as service from './backend'
 import * as drawing from './draw'
+import { db } from '../../../db'
+import { readAvailability } from './availability'
 
 export const executeDraw = createServerFn({ method: 'POST' })
   .inputValidator(idInput)
@@ -46,6 +49,16 @@ export const availableInventory = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     safe(() => service.inventory(data.id, data.from, data.limit)),
   )
+export const raffleAvailability = createServerFn({ method: 'GET' })
+  .inputValidator(idInput)
+  .handler(({ data }) => safe(async () => {
+    const { suggestions: _suggestions, eligible: _eligible, ...summary } = await readAvailability(db, { id: data.id }, undefined, undefined, false)
+    return summary
+  }))
+// Read-only POST keeps up to 1000 exclusions out of proxy URL limits.
+export const suggestedTickets = createServerFn({ method: 'POST' })
+  .inputValidator(availabilityInput)
+  .handler(({ data }) => safe(() => readAvailability(db, data)))
 export const adminInventory = createServerFn({ method: 'GET' })
   .inputValidator(inventoryInput)
   .handler(({ data }) =>

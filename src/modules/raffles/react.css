@@ -99,6 +99,87 @@ body:has(.nova-public dialog[open]) {
 .nova-public .search-form {
   margin-top: 24px;
 }
+/* Product view: contain at every breakpoint, bounded controls and paid-only meter. */
+.nova-public .product-layout > * {
+  min-width: 0;
+}
+.nova-public .detail-info h1,
+.nova-public .spec-grid dd {
+  overflow-wrap: anywhere;
+}
+.nova-public .detail-image img {
+  width: 100%;
+  object-fit: contain;
+}
+.nova-public .product-availability {
+  margin-block: 24px;
+}
+.nova-public .availability-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.nova-public .product-availability progress {
+  width: 100%;
+  height: 4px;
+  margin-block: 8px;
+  border: 0;
+  background: var(--line);
+  accent-color: var(--red);
+}
+.nova-public .product-availability progress::-webkit-progress-bar { background: var(--line); }
+.nova-public .product-availability progress::-webkit-progress-value { background: var(--red); }
+.nova-public .product-availability progress::-moz-progress-bar { background: var(--red); }
+.nova-public .inventory-details {
+  margin-top: 18px;
+  color: var(--muted);
+}
+.nova-public .inventory-details summary {
+  cursor: pointer;
+}
+.nova-public .ticket-panel .input-row input {
+  min-width: 0;
+  width: 0;
+  flex: 1;
+}
+.nova-public .ticket-panel .input-row,
+.nova-public .lucky-heading {
+  min-width: 0;
+}
+.nova-public .ticket-panel .detail-stats {
+  flex-wrap: wrap;
+}
+.nova-public .inventory-details .input-row {
+  flex-wrap: wrap;
+}
+.nova-public .selection-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+  margin-top: 24px;
+}
+.nova-public .selection-summary > div {
+  min-width: 0;
+}
+.nova-public .selection-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.nova-public .selection-summary strong {
+  display: block;
+  font-size: 1.75rem;
+  overflow-wrap: anywhere;
+}
+.nova-public .selection-summary .button {
+  flex-shrink: 0;
+  padding-inline: 20px;
+}
 .nova-public .site-header nav {
   flex-wrap: wrap;
 }

@@ -105,7 +105,7 @@ Secciones: **Resumen, Rifas, Compras e Ingresos**, basadas en `docs/design/Rifas
 - No ejecutar seed, migraciones, `db:push`, reset, bootstrap o cambios contra DB real sin autorización operativa y verificación del destino. No matar/reiniciar servidores del usuario sin permiso.
 - `db:seed` muestra plan por defecto; ejecución explícita de desarrollo requiere `--execute`. No convertirlo en recuperación de cuentas ni sobrescribir colisiones.
 - Desarrollo tuvo 0000–0004 aplicadas bajo autorización previa; esa evidencia no autoriza repetirlas sobre otra DB o producción. Reconciliar baseline y journal antes de migrar.
-- `drizzle/0005_phone_automatic_draw.sql` agrega teléfono y auditoría automática. Está preparada y probada en memoria, **no aplicada a DB real en este trabajo**.
+- `drizzle/0005_phone_automatic_draw.sql` agrega teléfono y auditoría automática. **Aplicada con Drizzle bajo autorización explícita en la DB configurada de este workspace**: historial 0000–0005 verificado por hash/fecha, `phone` nullable y constraints confirmados. Esto no acredita su aplicación en otro destino ni activa cron/despliegue.
 - Conservar journal/snapshot coherentes; no modificar snapshots históricos. Snapshot 0005 comparado con esquema actual genera cero DDL: esto no significa que la migración fue aplicada.
 - Para activar: aplicar migración revisada y autorizada **antes de desplegar código que consulta `phone`**, configurar `CRON_SECRET` servidor en Vercel y desplegar. No hay cron ni mensajes reales activados por las pruebas.
 - Commit/push/PR requieren autorización del usuario; un permiso de commit no implica push o despliegue. Excluir cambios ajenos y archivos de entorno.

@@ -367,7 +367,8 @@ try {
   stage = 'anonymous public ticket selection'
   await page.goto(base + `/#rifa/${raffle.id}`)
   await page.waitForLoadState('networkidle')
-  await page.locator('.ticket-number').first().click()
+  await page.getByText('Ver inventario paginado', { exact: true }).click()
+  await page.locator('.inventory-details .ticket-number').first().click()
   await page.getByRole('button', { name: 'CONTINUAR', exact: true }).click()
   await page.getByRole('heading', { name: 'Ingresa para continuar' }).waitFor()
   assert.equal((await (await helper('counts')).json()).purchases, 0)
@@ -669,6 +670,87 @@ try {
   await page.goto(base + `/#rifa/${raffle.id}`)
   const drawStatus = page.getByRole('region', { name: 'Estado del sorteo' })
   await drawStatus.getByText('Sorteo programado', { exact: true }).waitFor()
+  stage = 'active product availability and responsive selection'
+  await page.waitForLoadState('networkidle')
+  let realInventory = await rpc(raffleModule, 'availableInventory', { id: raffle.id, from: raffle.startNumber, limit: 1000 })
+  assert.equal(realInventory.tickets.length, raffle.ticketCount)
+  const availableCount = realInventory.tickets.filter((t: any) => t.state === 'available').length
+  const soldCount = realInventory.tickets.filter((t: any) => t.state === 'sold').length
+  const metrics = page.getByLabel('Disponibilidad de boletos', { exact: true })
+  await metrics.getByText(`${availableCount.toLocaleString('es-MX')} boletos disponibles`, { exact: true }).waitFor()
+  await metrics.getByText(`${Math.floor(soldCount * 100 / raffle.ticketCount)}% vendidos`, { exact: true }).waitFor()
+  assert.equal(Number(await metrics.getByRole('progressbar', { name: 'Boletos pagados' }).getAttribute('value')), soldCount)
+  const suggestions = page.getByLabel('Números sugeridos', { exact: true })
+  const verifySuggestions = async () => {
+    const numbers = (await suggestions.locator('button').allTextContents()).map(Number)
+    assert.equal(numbers.length, Math.min(8, realInventory.tickets.filter((t: any) => t.state === 'available').length))
+    assert.equal(new Set(numbers).size, 8)
+    assert.ok(numbers.every((n: number) => realInventory.tickets.some((t: any) => t.number === n && t.state === 'available')))
+  }
+  assert.equal(await suggestions.locator('button').count(), 8)
+  await verifySuggestions()
+  const changedNumber = realInventory.tickets.find((t: any) => t.state === 'available').number
+  const beforeProductReads = await (await helper('counts')).json()
+  await rpc(raffleModule, 'blockTickets', { raffleId: raffle.id, tickets: [changedNumber] })
+  // The admin write does not refresh this page's cache. Only the explicit
+  // refresh below must obtain a new summary, not copy its old cached value.
+  await metrics.getByText(`${availableCount.toLocaleString('es-MX')} boletos disponibles`, { exact: true }).waitFor()
+  const summaryResponse = () => page.waitForResponse(async (response: any) => {
+    if (response.request().method() !== 'GET' || !response.url().includes('_serverFn') || response.status() !== 200) return false
+    const body = await response.text()
+    return body.includes('"available"') && body.includes('"sold"')
+  })
+  const refreshedSuggestionsSummary = summaryResponse()
+  await page.getByRole('button', { name: 'Otros números' }).click()
+  await refreshedSuggestionsSummary
+  await metrics.getByText(`${(availableCount - 1).toLocaleString('es-MX')} boletos disponibles`, { exact: true }).waitFor()
+  await metrics.getByText(`${Math.floor(soldCount * 100 / raffle.ticketCount)}% vendidos`, { exact: true }).waitFor()
+  realInventory = await rpc(raffleModule, 'availableInventory', { id: raffle.id, from: raffle.startNumber, limit: 1000 })
+  await page.waitForLoadState('networkidle')
+  await verifySuggestions() // A refresh may legitimately return the same set.
+  await rpc(raffleModule, 'unblockTickets', { raffleId: raffle.id, tickets: [changedNumber] })
+  await page.getByText('Ver inventario paginado', { exact: true }).click()
+  const refreshedInventorySummary = summaryResponse()
+  await page.getByRole('button', { name: 'Actualizar inventario', exact: true }).click()
+  await refreshedInventorySummary
+  await metrics.getByText(`${availableCount.toLocaleString('es-MX')} boletos disponibles`, { exact: true }).waitFor()
+  await page.getByText('Ver inventario paginado', { exact: true }).click()
+  await page.getByLabel('Busca tu número especial', { exact: true }).fill(String(changedNumber))
+  await page.getByRole('button', { name: 'BUSCAR', exact: true }).click()
+  await page.locator('.search-result button').click()
+  for (const quantity of [10, 50, 100]) {
+    await page.getByRole('button', { name: `${quantity} boletos`, exact: true }).click()
+    assert.equal(await page.locator('#quantity').inputValue(), String(quantity))
+  }
+  await page.locator('#quantity').fill('2')
+  await page.locator('.quantity-form').getByRole('button', { name: 'AGREGAR', exact: true }).click()
+  await page.waitForFunction(() => document.querySelectorAll('.selected-react button').length === 3)
+  const selectedNumbers = (await page.locator('.selected-react button').allTextContents()).map((label: string) => Number(label.replace('×', '').trim()))
+  assert.equal(new Set(selectedNumbers).size, 3)
+  assert.equal((await (await helper('counts')).json()).purchases, beforeProductReads.purchases)
+  await page.getByRole('button', { name: 'Limpiar', exact: true }).click()
+  await page.waitForLoadState('networkidle')
+  assert.equal(await page.locator('.selected-react button').count(), 0)
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.waitForFunction(() => {
+      const img = document.querySelector('.detail-image img') as HTMLImageElement
+      return img?.complete && img.naturalWidth > 0
+    })
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false)
+    const left = await page.locator('.product-detail').boundingBox()
+    const right = await page.locator('.ticket-panel').boundingBox()
+    if (width === 1440) {
+      assert.ok(right.x >= left.x + left.width)
+      assert.ok(Math.abs(right.y - left.y) < 2)
+    } else {
+      assert.ok(right.y >= left.y + left.height)
+      assert.ok(Math.abs(right.x - left.x) < 2)
+    }
+    await page.screenshot({ path: `/tmp/juliorifa-product-${width}.png`, fullPage: true })
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  console.log('PASS real product sold-only metrics, eight available global suggestions and responsive 1440/390/320')
   stage = 'paid-only cryptographic draw and repeat stability'
   const due = new Date(Date.now() - 1000).toISOString()
   await rpc(raffleModule, 'updateRaffle', {
@@ -1038,7 +1120,8 @@ try {
       if (
         request.method() === 'POST' &&
         request.url().includes('_serverFn') &&
-        (request.postData() || '').includes(uiId)
+        (request.postData() || '').includes(uiId) &&
+        (request.postData() || '').includes('idempotencyKey')
       )
         cartReservationPosts++
     },
@@ -1049,7 +1132,8 @@ try {
   await cartPage.getByText(editedTitle, { exact: true }).first().waitFor()
   await cartPage.goto(base + `/#rifa/${uiId}`)
   await cartPage.waitForLoadState('networkidle')
-  await cartPage.locator('.ticket-number').first().click()
+  await cartPage.getByText('Ver inventario paginado', { exact: true }).click()
+  await cartPage.locator('.inventory-details .ticket-number').first().click()
   await cartPage.getByRole('button', { name: 'CONTINUAR', exact: true }).click()
   await cartPage
     .getByRole('heading', { name: 'Ingresa para continuar', exact: true })
@@ -1278,7 +1362,8 @@ try {
   const beforeSignupReservation = await (await helper('counts')).json()
   await signupPage.goto(base + `/#rifa/${uiId}`)
   await signupPage.waitForLoadState('networkidle')
-  await signupPage.locator('.ticket-number').first().click()
+  await signupPage.getByText('Ver inventario paginado', { exact: true }).click()
+  await signupPage.locator('.inventory-details .ticket-number:not([disabled])').first().click()
   await signupPage
     .getByRole('button', { name: 'CONTINUAR', exact: true })
     .click()

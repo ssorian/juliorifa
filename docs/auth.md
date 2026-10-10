@@ -1,5 +1,9 @@
 # Acceso por correo y contraseña
 
+## Corrección operativa: columna de teléfono
+
+Bajo autorización explícita se aplicó `0005_phone_automatic_draw.sql` con `bun run db:migrate` en la DB configurada del servidor. Historial 0000–0005 verificado por hash/fecha; `user.phone` existe y admite NULL. El SELECT de columnas de Auth compila: el error 42703 no era una obligación de teléfono para el administrador, sino una migración pendiente. No se alteraron cuentas/contraseñas ni se verificó login HTTP con credenciales reales. La evidencia de “no aplicada” posterior corresponde a la tarea histórica y no autoriza migrar otro destino.
+
 ## Teléfono para nuevos registros — tarea 23
 
 **Writerfix actual:** admin puede consultar teléfono/wa.me manual de solicitudes antes del sorteo; own/public no reciben contacto, legacy NULL permanece sin gate. Fixture seed usa migraciones actuales: full110/110 PASS. Tres cold E2E completos25 checkpoints cada uno,0 pageerrors/hydration y logout PASS (logs `/tmp/juliorifa-writerfix-cold{2,3,4}.log`); fallos globales anteriores quedan como historia, no estado actual. Tsc/build PASS. Sin cuentas reales nuevas ni migración/cron/mensajes reales activados.

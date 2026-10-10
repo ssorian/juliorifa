@@ -1,5 +1,9 @@
 # Backend de rifas: bloques 1–4
 
+## Activación posterior autorizada de 0005
+
+Se ejecutó `bun run db:migrate` sobre la DB configurada del servidor, previa verificación de destino e historial 0000–0004 por hash/fecha. Postflight: seis migraciones registradas, ninguna pendiente; `user.phone` nullable, `raffle_draws.source` y constraints validados. La consulta de columnas usada por Auth compila sin leer datos de cuentas. No se modificaron usuarios/contraseñas ni se probó login HTTP real; no se activó cron ni despliegue. Las referencias posteriores a “no aplicada” describen el cierre histórico, no este destino actual.
+
 ## Apartado inmediato, contacto y sorteo diario — tarea 23
 
 **Cierre independiente: PASS del alcance solicitado.** 110/110 pruebas, 25 checkpoints de navegador con caché fría y cero errores de página/hidratación; logout, tipos y build correctos. Los tres P2 están corregidos, sin nuevos hallazgos de esta feature. Imágenes dev y activación real siguen separadas, como se detalla abajo.
@@ -61,6 +65,14 @@ Configurar `SUPABASE_URL`, `SUPABASE_SECRET_KEY` y `SUPABASE_STORAGE_BUCKET`. So
 Activación manual pendiente: si existen objetos del proveedor S3 anterior, copiarlos a Supabase conservando EXACTAMENTE las keys `proofs/<UUID>` e `images/<UUID>` antes de cambiar configuración. No hay migración, borrado ni copia automática; ese trabajo requiere autorización separada. Filas, namespaces y leases existentes se conservan.
 
 Dependencias: Supabase SDK nativo 2.117.3 sustituye AWS cliente/presigner (dependencias AWS retiradas); sharp (decodificación, límite 40MP, normalización raster/strip metadata), PGlite DEV (pruebas PostgreSQL en memoria). No se inspeccionaron valores secretos ni se hizo I/O con Supabase real.
+
+## Disponibilidad global de producto
+
+El detalle consulta `raffleAvailability` por GET `{id}`: `salesOpen`, `ticketCount`, `available` y `sold`. Solo occupancy `sold` (pago aprobado) cuenta como vendido; reserved/reviewing/blocked reducen disponibles, no ventas. El porcentaje visible usa piso entero.
+
+`suggestedTickets` es **POST de lectura**, nunca crea apartados: `{id, limit=8 (1–1000), exclude=[] (máximo 1000 distintos)}`. El body evita URLs demasiado largas con exclusiones; rango real validado bajo lock. Devuelve conteos, `eligible` (libres menos seleccionados libres) y hasta `limit` números únicos de toda la rifa, sin IDs de compras/contactos. Ambos usan lockRaffle → expireReservations → consultas en una transacción; reviewing no expira. Venta cerrada conserva conteos y devuelve sugerencias vacías.
+
+El muestreo usa rangos libres entre ocupados/excluidos y ranks distintos generados por crypto.randomInt; SQL parametrizado con ventanas y arrays acotados, sin generate_series del universo, ORDER BY random ni descarga de ocupación al cliente. Su coste depende de ocupación/exclusiones, no se promete coste constante. El inventario paginado anterior sigue en un details opcional. La selección local, login, confirmación explícita, recovery/idempotencia y comprobante manual no cambian.
 
 ## Contrato API
 
