@@ -1,9 +1,10 @@
 import '@tanstack/react-start/server-only'
 import { randomUUID } from 'node:crypto'
-import { and, eq, inArray, ilike, or } from 'drizzle-orm'
+import { and, eq, inArray, ilike, or, sql } from 'drizzle-orm'
 import { db } from '../../../db'
 import { requireAdmin } from '../../auth/services/authorization'
 import { raffles } from '../db/schema'
+import { raffleLifecycle, assertArchivable } from '../lib/raffle-lifecycle'
 import { occupancy, purchases } from '../../purchases/db/schema'
 import { DomainError, validateTickets } from '../../purchases/domain'
 import {
@@ -22,12 +23,32 @@ import type {
   adminListInput,
 } from '../schemas/backend'
 
-function dto(r: typeof raffles.$inferSelect, admin = false) {
+// One bounded-page query; EXISTS uses purchase/occupancy indexes, not per-row requests.
+async function archiveEvidence(reader: Pick<typeof db, 'select'>, ids: string[], now: Date) {
+  if (!ids.length) return []
+  return reader.select({
+    id: raffles.id,
+    // Constant qualified SQL avoids Drizzle's single-table SELECT column dequalification.
+    // All runtime values remain bound parameters; aliases make nested correlation explicit.
+    hasPurchases: sql<boolean>`exists(select 1 from purchases as ap where ap.raffle_id = raffles.id)`,
+    hasOccupancy: sql<boolean>`exists(select 1 from ticket_occupancy as ao where ao.raffle_id = raffles.id)`,
+    hasResult: sql<boolean>`exists(select 1 from raffle_draws as ad where ad.raffle_id = raffles.id)`,
+    paid: sql<boolean>`exists(select 1 from purchases as ap where ap.raffle_id = raffles.id and ap.status = 'paid')`,
+    pending: sql<boolean>`exists(select 1 from purchases as ap where ap.raffle_id = raffles.id and (ap.status = 'reviewing' or (ap.status = 'awaiting_proof' and ap.expires_at > ${now})))`,
+    occupied: sql<boolean>`exists(select 1 from ticket_occupancy as ao where ao.raffle_id = raffles.id and (ao.state in ('sold','reviewing') or (ao.state = 'reserved' and not exists(select 1 from purchases as ap where ap.id = ao.order_id and ap.raffle_id = raffles.id and ap.status = 'awaiting_proof' and ap.expires_at <= ${now}))))`,
+  }).from(raffles).where(inArray(raffles.id, ids))
+}
+type Evidence = Awaited<ReturnType<typeof archiveEvidence>>[number]
+function dto(r: typeof raffles.$inferSelect, admin = false, evidence?: Evidence, now = new Date()) {
+  const lifecycle = raffleLifecycle(r.status, r.salesDeadline, now)
   const base = {
     id: r.id,
     title: r.title,
     description: r.description,
     status: r.status,
+    ...lifecycle,
+    canArchive: eligibleArchive(r, evidence, now),
+    ...(admin ? { archiveWithoutDraw: !!evidence && !evidence.hasResult && eligibleArchive(r, evidence, now) } : {}),
     ticketCount: r.ticketCount,
     startNumber: r.startNumber,
     priceCents: r.priceCents,
@@ -51,25 +72,16 @@ function dto(r: typeof raffles.$inferSelect, admin = false) {
       : {}),
   }
 }
+function eligibleArchive(r: typeof raffles.$inferSelect, evidence: Evidence | undefined, now: Date) {
+  if (!evidence || r.status === 'archived') return false
+  try {
+    assertArchivable(r.status, r.salesDeadline, now, evidence.hasResult, { ...evidence, drawAt: r.drawAt ?? r.salesDeadline })
+    return true
+  } catch { return false }
+}
 function validateSale(data: z.infer<typeof raffleInput>) {
   if (data.status === 'active' && Date.parse(data.salesDeadline) <= Date.now())
     throw new DomainError('DEADLINE_PASSED')
-}
-function fingerprint(data: z.infer<typeof raffleInput>) {
-  return JSON.stringify([
-    data.title,
-    data.description,
-    data.startNumber,
-    data.ticketCount,
-    data.priceCents,
-    data.feeBps,
-    data.prizeCostCents,
-    data.expensesCents,
-    new Date(data.salesDeadline).toISOString(),
-    new Date(data.drawAt ?? data.salesDeadline).toISOString(),
-    data.features.map((f) => [f.title, f.description]),
-    data.images.map((i) => [i.key, i.alt]),
-  ])
 }
 export async function create(data: z.infer<typeof raffleInput>) {
   await requireAdmin()
@@ -88,37 +100,13 @@ export async function create(data: z.infer<typeof raffleInput>) {
 }
 export async function update(data: z.infer<typeof updateInput>) {
   const actor = await requireAdmin()
+  // Archival is a narrow status-only operation, including through update.
+  if (data.status === 'archived') return archive(data.id)
   validateSale(data)
   return db.transaction(async (tx) => {
     const current = await lockRaffle(tx, data.id)
-    if (current.status === 'drawn' || current.status === 'archived') {
-      const prior = {
-        title: current.title,
-        description: current.description,
-        status: data.status,
-        startNumber: current.startNumber,
-        ticketCount: current.ticketCount,
-        priceCents: current.priceCents,
-        feeBps: current.feeBps,
-        prizeCostCents: current.prizeCostCents,
-        expensesCents: current.expensesCents,
-        salesDeadline: current.salesDeadline.toISOString(),
-        drawAt: (current.drawAt ?? current.salesDeadline).toISOString(),
-        features: current.features,
-        images: current.images,
-      }
-      if (
-        data.status !== 'archived' ||
-        fingerprint(data) !== fingerprint(prior)
-      )
-        throw new DomainError('DRAWN_IMMUTABLE')
-      const [row] = await tx
-        .update(raffles)
-        .set({ status: 'archived', updatedAt: new Date() })
-        .where(eq(raffles.id, data.id))
-        .returning()
-      return dto(row, true)
-    }
+    if (current.status === 'drawn' || current.status === 'archived')
+      throw new DomainError('DRAWN_IMMUTABLE')
     if (new Set(data.images.map((i) => i.key)).size !== data.images.length)
       throw new DomainError('INVALID_IMAGE_ASSET')
     for (const image of data.images) {
@@ -158,6 +146,29 @@ export async function update(data: z.infer<typeof updateInput>) {
     return dto(row, true)
   })
 }
+// Expiration commits even when archival is refused; never cancel reviewing.
+export async function archive(id: string) {
+  await requireAdmin()
+  const outcome = await db.transaction(async (tx) => {
+    const current = await lockRaffle(tx, id)
+    const now = new Date()
+    if (current.status === 'archived') return { row: dto(current, true) }
+    await expireReservations(tx, id, now)
+    const [evidence] = await archiveEvidence(tx, [id], now)
+    try {
+      assertArchivable(current.status, current.salesDeadline, now, evidence.hasResult, { ...evidence, drawAt: current.drawAt ?? current.salesDeadline })
+    } catch (error) {
+      if (error instanceof DomainError) return { error }
+      throw error
+    }
+    const [row] = await tx.update(raffles).set({ status: 'archived', updatedAt: now }).where(eq(raffles.id, id)).returning()
+    return { row: dto(row, true) }
+  })
+  if (outcome.error) throw outcome.error
+  return outcome.row!
+
+}
+
 export async function list(
   offset: number,
   limit: number,
@@ -188,7 +199,10 @@ export async function list(
     .orderBy(raffles.createdAt, raffles.id)
     .offset(offset)
     .limit(limit)
-  return rows.map((row) => dto(row, admin))
+  const now = new Date()
+  const evidence = admin ? await archiveEvidence(db, rows.map((r) => r.id), now) : []
+  const byId = new Map(evidence.map((e) => [e.id, e]))
+  return rows.map((row) => dto(row, admin, byId.get(row.id), now))
 }
 export async function detail(id: string, admin = false) {
   if (admin) await requireAdmin()
@@ -202,7 +216,9 @@ export async function detail(id: string, admin = false) {
     )
   const row = rows.at(0)
   if (!row) throw new DomainError('NOT_FOUND')
-  return dto(row, admin)
+  const now = new Date()
+  const evidence = admin ? (await archiveEvidence(db, [id], now))[0] : undefined
+  return dto(row, admin, evidence, now)
 }
 export async function inventory(
   id: string,

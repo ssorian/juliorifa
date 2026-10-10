@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { PurchaseCard } from '../components/PurchaseCard'
 import { PurchaseSummary } from '../components/PurchaseSummary'
-import { purchaseFlags, safePurchaseId, statusLabel } from './presentation'
+import { auditLabel, purchaseFlags, safePurchaseId, statusLabel } from './presentation'
 import type { PurchaseDTO } from '../types'
 
 const id = '11111111-1111-4111-8111-111111111111'
@@ -28,7 +28,7 @@ const fixture: PurchaseDTO = {
   },
   reviewedAt: null,
 }
-test('cards show short folio, readable raffle ID and state-specific detail navigation', () => {
+test('cards show product fallback, short folio and six textual status badges', () => {
   for (const [status, cta] of Object.entries({
     awaiting_proof: 'Ver instrucciones de pago',
     reviewing: 'Consultar revisión',
@@ -43,7 +43,15 @@ test('cards show short folio, readable raffle ID and state-specific detail navig
       />,
     )
     assert.match(html, /Apartado 11111111/)
-    assert.match(html, /Rifa 11111111/)
+    assert.match(html, /Producto no disponible/)
+    assert.match(html, /Imagen no disponible/)
+    assert.doesNotMatch(html, /Rifa 11111111/)
+    assert.match(html, /APARTADO ·/)
+    assert.match(html, /class="button primary"/)
+    assert.match(html, /MXN \/ total/)
+    assert.match(html, /Ver apartado/)
+    assert.match(html, new RegExp(`purchase-status--${status}`))
+    assert.ok(html.includes(statusLabel(status as PurchaseDTO['status'])))
     assert.ok(html.includes(cta))
     assert.ok(html.includes(`/mis-compras?id=${id}`))
     assert.match(html, />31 dic 2019, 18:00 \(Ciudad de México\)</)
@@ -56,9 +64,30 @@ test('available raffle title is used without replacing the full payment referenc
     <PurchaseCard purchase={{ ...fixture, raffleTitle: 'Premio histórico' }} />,
   )
   assert.match(html, /Premio histórico/)
+  const image = renderToStaticMarkup(<PurchaseCard purchase={{ ...fixture, raffleTitle: 'Producto', raffleImageUrl: '/api/media/images/verified' }} />)
+  assert.match(image, /src="\/api\/media\/images\/verified"/)
+  assert.match(image, /alt="Producto"/)
+  assert.doesNotMatch(image, /Imagen no disponible/)
   const summary = renderToStaticMarkup(<PurchaseSummary purchase={fixture} />)
   assert.ok(summary.includes(id))
   assert.match(summary, /31 dic 2019, 18:00/)
+})
+
+test('detail summary uses a quiet reference and bounded accessible ticket disclosure', () => {
+  const html = renderToStaticMarkup(<PurchaseSummary purchase={{ ...fixture, tickets: Array.from({ length: 1000 }, (_, i) => i) }} />)
+  assert.match(html, /<h2>Tu apartado<\/h2>/)
+  assert.doesNotMatch(html, /<h2>Apartado /)
+  assert.match(html, /<details/)
+  assert.match(html, /Ver todos los 1000 boletos/)
+  assert.match(html, /purchase-ticket-chip/)
+  assert.match(html, />999<\/span>/)
+  assert.ok(html.includes(id))
+  const titled = renderToStaticMarkup(<PurchaseSummary purchase={{ ...fixture, raffleTitle: 'Premio real' }} />)
+  assert.match(titled, /<h2>Premio real<\/h2>/)
+  const large = renderToStaticMarkup(<PurchaseSummary purchase={{ ...fixture, paymentInstructions: null, tickets: Array.from({ length: 107 }, (_, i) => i) }} />)
+  assert.match(large, /Ver todos los 107 boletos/)
+  assert.match(large, /No hay instrucciones bancarias guardadas/)
+  assert.doesNotMatch(large, /Banco fixture/)
 })
 
 test('SSR reviewing is retained not paid; server total without surcharge and snapshot labels', () => {
@@ -97,6 +126,14 @@ test('summary exposes persisted purchase progress, including legacy dates and te
       assert.doesNotMatch(html, /<ol/)
     else assert.match(html, /<ol/)
   }
+})
+
+test('audit translates known events without inventing unknown history', () => {
+  assert.equal(auditLabel('reserved'), 'Apartado creado')
+  assert.equal(auditLabel('reviewing'), 'Comprobante recibido')
+  assert.equal(auditLabel('paid'), 'Pago confirmado')
+  assert.equal(auditLabel('unexpected-event'), 'unexpected-event')
+  assert.equal(auditLabel('toString'), 'toString')
 })
 
 test('all terminal statuses do not allow upload/cancel and UUID route rejects arbitrary IDs', () => {

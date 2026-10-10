@@ -2,7 +2,10 @@ import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { currentUser } from '../../auth/services/session'
 import { PurchaseDetail } from '../../purchases/components/PurchaseDetail'
+import '../../purchases/react.css'
 import { reservationDialog } from '../lib/reservation-dialog'
+import { salesState } from '../lib/sales-state'
+import { TicketSalesNotice } from './TicketSalesNotice'
 import { createReservation } from '../../purchases/server'
 import { availableInventory, suggestedTickets } from '../services/server'
 import { useSuggestedTickets, useRaffleAvailability, useRaffleAvailabilityRefresh } from '../hooks/useRaffleAvailability'
@@ -30,7 +33,8 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
   const [reservedId, setReservedId] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const paymentDialog = reservationDialog(reservedId, actorId)
-  const open = inventory.isSuccess && inventory.data.salesOpen === true &&
+  const notice = salesState(availability, inventory, suggestions)
+  const open = notice === null && inventory.isSuccess && inventory.data.salesOpen === true &&
     suggestions.isSuccess && suggestions.data.salesOpen === true &&
     availability.isSuccess && availability.data.salesOpen === true && !cart.restoring
   const pad = (n: number) =>
@@ -120,7 +124,7 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
     }
   }
   async function confirm() {
-    if (busy) return
+    if (busy || !open) return
     setBusy(true)
     try {
       const id = await cart.persist()
@@ -148,6 +152,7 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
   return (
     <>
       <div id="comprar" className="ticket-panel">
+        {notice ? <TicketSalesNotice state={notice} /> : <>
         <div className="panel-heading">
           <p className="eyebrow">// ENTRA EN EL JUEGO</p>
           <h2>
@@ -163,20 +168,17 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
             <button onClick={() => void refreshAvailability(() => inventory.refetch())}>Reintentar</button>
           </p>
         )}
-        {(inventory.data?.salesOpen === false || availability.data?.salesOpen === false || suggestions.data?.salesOpen === false) && (
-          <p role="status">Venta cerrada. No puedes apartar.</p>
-        )}
         <div className="lucky-heading">
           <h3>NÚMEROS SUGERIDOS</h3>
           <button className="text-button" disabled={!open || busy || suggestions.isFetching}
-            onClick={() => void refreshAvailability(() => suggestions.refetch())}>↻ Otros números</button>
+            onClick={() => void refreshAvailability(() => suggestions.refresh())}>↻ Otros números</button>
         </div>
         <p className="help-text">Disponibles en toda la rifa; ninguna sugerencia mejora tus probabilidades.</p>
         {suggestions.isPending && <p role="status">Consultando sugerencias…</p>}
-        {suggestions.isError && <p role="alert">{errorMessage(suggestions.error)} <button onClick={() => void refreshAvailability(() => suggestions.refetch())}>Reintentar sugerencias</button></p>}
+        {suggestions.isError && <p role="alert">{errorMessage(suggestions.error)} <button onClick={() => void refreshAvailability(() => suggestions.refresh())}>Reintentar sugerencias</button></p>}
         <div className="lucky-grid" aria-label="Números sugeridos">
           {!suggestions.isError && suggestions.data?.suggestions.map(n => (
-            <button key={n} className="ticket-number" disabled={!open || busy}
+            <button type="button" key={n} className={`ticket-number ${selected.includes(n) ? 'selected' : ''}`} disabled={!open || busy}
               aria-pressed={selected.includes(n)} onClick={() => toggle(n)}>{pad(n)}</button>
           ))}
         </div>
@@ -323,13 +325,14 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
           CONTINUAR
         </button>
         </div>
+        </>}
       </div>
       <dialog
         ref={dialog}
-        className="react-dialog"
+        className="react-dialog purchase-checkout"
         aria-labelledby="checkout-title"
       >
-        <button onClick={() => dialog.current?.close()} disabled={busy}>
+        <button className="button secondary checkout-close" onClick={() => dialog.current?.close()} disabled={busy}>
           Cerrar ×
         </button>
         {paymentDialog ? (
@@ -343,10 +346,12 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
               userId={paymentDialog.userId}
               id={paymentDialog.id}
             />
-            <a href={`/mis-compras?id=${reservedId}`}>
+            <a className="button secondary" href={`/mis-compras?id=${reservedId}`}>
               Continuar en Mis apartados
             </a>
           </>
+        ) : notice ? (
+          <h2 id="checkout-title">{notice === 'closed' ? 'Esta rifa ha finalizado' : 'Boletos agotados'}</h2>
         ) : accessId ? (
           <>
             <h2 id="checkout-title">Ingresa para continuar</h2>
@@ -367,10 +372,11 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
         ) : (
           <>
             <h2 id="checkout-title">Confirma tu apartado</h2>
-            <p>
-              {raffle.title} · {selected.length} boletos · estimado{' '}
-              {money(selected.length * raffle.priceCents)} MXN
-            </p>
+            <div className="checkout-estimate">
+              <h3>{raffle.title}</h3>
+              <p>{selected.length} boletos · importe estimado</p>
+              <strong>{money(selected.length * raffle.priceCents)} MXN</strong>
+            </div>
             <p>
               Tendrás 24 horas para subir el comprobante de transferencia. Si
               llega a tiempo, tus boletos permanecen retenidos hasta la revisión
@@ -378,7 +384,7 @@ export function TicketSelection({ raffle }: { raffle: PublicRaffleDTO }) {
             </p>
             <button
               className="button primary"
-              disabled={busy || !selected.length}
+              disabled={busy || !selected.length || !open}
               onClick={() => void confirm()}
             >
               {busy ? 'Apartando…' : 'CONFIRMAR APARTADO'}

@@ -12,6 +12,17 @@ export function statusLabel(status: PurchaseStatus) {
     cancelled: 'Cancelado',
   }[status]
 }
+export function auditLabel(type: string) {
+  const labels: Record<string, string> = {
+    reserved: 'Apartado creado',
+    reviewing: 'Comprobante recibido',
+    paid: 'Pago confirmado',
+    cancelled: 'Apartado cancelado',
+    rejected: 'Pago rechazado',
+    expired: 'Apartado vencido',
+  }
+  return Object.hasOwn(labels, type) ? labels[type] : type
+}
 export function purchaseFlags(
   status: PurchaseStatus,
   expires: string,

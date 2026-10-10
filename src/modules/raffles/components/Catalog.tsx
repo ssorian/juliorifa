@@ -32,7 +32,7 @@ export function Catalog({ raffles }: { raffles: PublicRaffleDTO[] }) {
                   <p>Imagen no disponible</p>
                 )}
                 <span className="product-badge">
-                  {r.status === 'active' ? 'RIFA ACTIVA' : 'VENTA CERRADA'}
+                  {r.completed ? 'Terminada' : r.salesOpen ? 'RIFA ACTIVA' : 'VENTA CERRADA'}
                 </span>
               </a>
               <div className="product-card-body">
@@ -55,7 +55,7 @@ export function Catalog({ raffles }: { raffles: PublicRaffleDTO[] }) {
                   rifa.
                 </p>
                 <a className="button primary" href={`#rifa/${r.id}`}>
-                  COMPRAR BOLETOS <span aria-hidden="true">✦</span>
+                  {r.salesOpen ? 'COMPRAR BOLETOS' : 'Ver rifa'} <span aria-hidden="true">✦</span>
                 </a>
               </div>
             </article>

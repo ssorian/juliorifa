@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 import { randomUUID } from 'node:crypto'
-import { and, eq, lte } from 'drizzle-orm'
+import { and, eq, inArray, lte } from 'drizzle-orm'
 import type { db } from '../../db'
 import { raffles } from '../raffles/db/schema'
 import { purchases, occupancy, purchaseEvents, orderTickets } from './db/schema'
@@ -46,7 +46,7 @@ export async function lockRaffle(tx: Transaction, id: string) {
 }
 export async function expireReservations(
   tx: Transaction,
-  raffleId: string,
+  raffleId: string | string[],
   now: Date,
   limit = 1000000,
 ) {
@@ -55,7 +55,9 @@ export async function expireReservations(
     .from(purchases)
     .where(
       and(
-        eq(purchases.raffleId, raffleId),
+        Array.isArray(raffleId)
+          ? inArray(purchases.raffleId, raffleId)
+          : eq(purchases.raffleId, raffleId),
         eq(purchases.status, 'awaiting_proof'),
         lte(purchases.expiresAt, now),
       ),

@@ -1,16 +1,16 @@
 import { formatDate } from '../../../lib/utils/date'
 import { money } from '../../../lib/utils/money'
-import { DrawStatus } from './DrawStatus'
 import { TicketSelection } from './TicketSelection'
-import { usePublicDraw } from '../hooks/usePublicRaffles'
 import { useRaffleAvailability } from '../hooks/useRaffleAvailability'
+import { salesState } from '../lib/sales-state'
 import { soldPercentage } from '../lib/availability'
 import { errorMessage } from '../lib/presentation'
 import type { PublicRaffleDTO } from '../types/public'
 
 export function ProductDetail({ raffle }: { raffle: PublicRaffleDTO }) {
-  const draw = usePublicDraw(raffle.id)
   const availability = useRaffleAvailability(raffle.id)
+  const terminal = salesState(availability)
+  const salesLabel = terminal === 'closed' ? 'RIFA CONCLUIDA' : terminal === 'sold-out' ? 'BOLETOS AGOTADOS' : null
   return (
     <section className="product-main">
       <a className="back-link" href="#productos">
@@ -18,7 +18,7 @@ export function ProductDetail({ raffle }: { raffle: PublicRaffleDTO }) {
       </a>
       <div className="product-layout">
         <div className="product-detail">
-          <div className="detail-image">
+          <div className={`detail-image${raffle.images[0] ? '' : ' detail-image-fallback'}`}>
             {raffle.images[0] ? (
               <img
                 src={raffle.images[0].mediaUrl}
@@ -28,11 +28,20 @@ export function ProductDetail({ raffle }: { raffle: PublicRaffleDTO }) {
               <p>Imagen no disponible</p>
             )}
             <span className="product-badge">
-              {raffle.status === 'active' ? 'RIFA ACTIVA' : 'VENTA CERRADA'}
+              {salesLabel ?? (raffle.status === 'active' ? 'RIFA ACTIVA' : 'VENTA CERRADA')}
             </span>
+            {salesLabel && (
+              <div className="detail-sales-strip" role="status">
+                <h2>{salesLabel}</h2>
+                {terminal === 'closed' && (
+                  <p>Fecha de cierre de venta: {formatDate(raffle.salesDeadline)}</p>
+                )}
+                <p>Ya no es posible comprar boletos.</p>
+              </div>
+            )}
           </div>
           <div className="detail-info">
-            <p className="eyebrow">// TU PRÓXIMO UPGRADE</p>
+            {!terminal && <p className="eyebrow">// TU PRÓXIMO UPGRADE</p>}
             <h1>{raffle.title.toLocaleUpperCase('es-MX')}</h1>
             <p>{raffle.description}</p>
             <div className="detail-stats">
@@ -67,18 +76,11 @@ export function ProductDetail({ raffle }: { raffle: PublicRaffleDTO }) {
                 </div>
               ))}
             </dl>
-            <DrawStatus
-              drawAt={raffle.drawAt}
-              result={draw.data}
-              isSuccess={draw.isSuccess}
-              isError={draw.isError}
-              onRefresh={() => void draw.refetch()}
-            />
-            <p className="detail-bottom-note">
+            {!terminal && <p className="detail-bottom-note">
               Apartado de 24 horas para enviar comprobante. Revisión manual;
               solo pagos aprobados participan.{' '}
               <a href="#faq">Preguntas frecuentes</a>.
-            </p>
+            </p>}
           </div>
         </div>
         <TicketSelection key={raffle.id} raffle={raffle} />

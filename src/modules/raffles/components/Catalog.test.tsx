@@ -10,6 +10,9 @@ test('public catalog SSR uses server cents and zero-based safe DTO without fake 
     title: 'Rifa fixture',
     description: 'Descripción fixture',
     status: 'active',
+    salesOpen: true,
+    completed: false,
+    canArchive: false,
     startNumber: 0,
     ticketCount: 10,
     priceCents: 199,
@@ -44,6 +47,8 @@ test('public catalog SSR uses server cents and zero-based safe DTO without fake 
         ...r,
         id: `fixture-${index}`,
         status: index === 2 ? 'closed' : 'active',
+        salesOpen: index !== 2,
+        completed: index === 2,
         images: [
           {
             key: `images/fixture-${index}`,
@@ -55,8 +60,9 @@ test('public catalog SSR uses server cents and zero-based safe DTO without fake 
     />,
   )
   assert.equal((three.match(/class="product-card"/g) || []).length, 3)
-  assert.equal((three.match(/COMPRAR BOLETOS/g) || []).length, 3)
-  assert.match(three, /VENTA CERRADA/)
+  assert.equal((three.match(/COMPRAR BOLETOS/g) || []).length, 2)
+  assert.match(three, /Terminada/)
+  assert.match(three, /Ver rifa/)
   assert.match(three, /href="#rifa\/fixture-2"/)
   assert.doesNotMatch(three, /% vendidos|class="progress"/)
 })

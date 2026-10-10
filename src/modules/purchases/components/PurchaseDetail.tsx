@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOwnPurchase, useOwnAudit } from '../hooks/useOwnPurchases'
-import { ownKey, purchaseFlags } from '../lib/presentation'
+import { auditLabel, ownKey, purchaseFlags } from '../lib/presentation'
 import { cancelReservation } from '../server'
 import { PurchaseSummary } from './PurchaseSummary'
 import { ProofUpload } from './ProofUpload'
@@ -152,23 +152,27 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
               : `Tiempo restante: ${Math.floor(seconds / 3600)} h ${Math.floor((seconds % 3600) / 60)} min`}
         </p>
       )}
-      <button onClick={() => void copy(p.id, 'Referencia')}>
+      <div className="purchase-actions">
+      <button className="button secondary" onClick={() => void copy(p.id, 'Referencia')}>
         Copiar referencia
       </button>
       {p.paymentInstructions && (
         <button
+          className="button secondary"
           onClick={() => void copy(p.paymentInstructions!.account, 'Cuenta')}
         >
           Copiar cuenta
         </button>
       )}
       <button
+        className="button secondary"
         onClick={() => void copy((p.totalCents / 100).toFixed(2), 'Importe')}
       >
         Copiar importe
       </button>
       <button
         disabled={busy}
+        className="button secondary"
         onClick={() =>
           void refresh().catch(() =>
             setMessage('No pudimos actualizar el estado.'),
@@ -177,10 +181,12 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
       >
         Actualizar
       </button>
+      </div>
       {flags.upload && <ProofUpload key={id} busy={busy} onSend={upload} />}
       {flags.cancel && (
         <button
           disabled={busy}
+          className="button purchase-danger"
           onClick={() => {
             if (window.confirm('¿Cancelar el apartado y liberar tus boletos?'))
               void cancel()
@@ -191,6 +197,7 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
       )}
       {p.proofReceivedAt && (
         <a
+          className="button secondary"
           href={`/api/media/proofs/${p.id}`}
           target="_blank"
           rel="noopener noreferrer"
@@ -207,14 +214,15 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
           <button onClick={() => void audit.refetch()}>Reintentar</button>
         </p>
       )}
-      <ul>
+      <ol className="purchase-timeline">
         {audit.data?.map((event, i) => (
           <li key={i}>
-            {formatDate(event.createdAt)} · {event.type}
-            {event.reason && <> · Motivo: {event.reason}</>}
+            <strong>{auditLabel(event.type)}</strong>
+            <time dateTime={event.createdAt}>{formatDate(event.createdAt)}</time>
+            {event.reason && <p>Motivo: {event.reason === 'Proof received' ? 'Comprobante recibido' : event.reason}</p>}
           </li>
         ))}
-      </ul>
+      </ol>
     </section>
   )
 }

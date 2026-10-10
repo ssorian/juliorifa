@@ -22,7 +22,9 @@ export interface PurchaseDTO {
     phone?: string | null
     whatsapp?: string | null
   }
+  // Current product metadata; not a historical payment snapshot.
   raffleTitle?: string
+  raffleImageUrl?: string | null
   proofMime?: string | null
   proofVerified?: boolean
 }

@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 import { createHash, randomUUID } from 'node:crypto'
-import { and, eq, ilike, or, sql, desc } from 'drizzle-orm'
+import { and, eq, ilike, or, sql, desc, inArray } from 'drizzle-orm'
 import { user } from '../auth/db/schema'
 import { winnerContact } from '../auth/lib/phone'
 import { mediaAssets } from '../../lib/storage/db'
@@ -41,6 +41,7 @@ import {
 import { createWorkflowRepository } from './workflow-repository'
 import { resolvePaymentInstructions } from './payment-config'
 import { raffles } from '../raffles/db/schema'
+import { listOwnProducts } from './lib/purchase-products'
 
 export async function lookupOwnReservationByKey(idempotencyKey: string) {
   const actor = await requireUser()
@@ -267,6 +268,16 @@ export async function list(
   filters?: z.infer<typeof adminListInput>,
 ) {
   const actor = admin ? await requireAdmin() : await requireUser()
+  if (!admin) return db.transaction(async tx => {
+    const page = await listOwnProducts(tx, actor.id, offset, limit)
+    if (!page.length) return page
+    const ids = [...new Set(page.map(order => order.raffleId))].sort()
+    // Preserve the existing list's expiry side effect; lock all raffles before orders.
+    await tx.select({ id: raffles.id }).from(raffles)
+      .where(inArray(raffles.id, ids)).orderBy(raffles.id).for('update')
+    const expired = await expireReservations(tx, ids, new Date())
+    return expired ? listOwnProducts(tx, actor.id, offset, limit) : page
+  })
   const rows = await db
     .select({ id: purchases.id })
     .from(purchases)

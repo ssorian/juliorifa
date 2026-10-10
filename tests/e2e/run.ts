@@ -136,6 +136,62 @@ try {
     if (/hydration|hydrated|did not match/i.test(message.text()))
       hydrationErrors++
   })
+  if (process.argv.includes('--suggestions-only')) {
+    stage = 'stable suggested ticket interaction'
+    const password = randomBytes(24).toString('hex')
+    assert.equal((await context.request.post(base + '/__fixture/bootstrap-admin', {
+      headers: { 'x-fixture-key': key }, data: password.slice(0, 8),
+    })).status(), 200)
+    assert.equal((await context.request.post(base + '/api/auth/sign-in/email', {
+      headers: { Origin: base }, data: { email: 'dev-admin@fixture.invalid', password: password.slice(0, 8) },
+    })).status(), 200)
+    await page.goto(base)
+    await page.waitForLoadState('networkidle')
+    const raffle = await page.evaluate(async () => {
+      const api = await import('/src/modules/raffles/services/server.ts' as string)
+      return api.createRaffle({ data: {
+        title: 'Suggestion interaction', description: 'Isolated', status: 'active',
+        startNumber: 0, ticketCount: 100, priceCents: 100, feeBps: 0,
+        prizeCostCents: 0, expensesCents: 0, features: [], images: [],
+        salesDeadline: new Date(Date.now() + 86400000).toISOString(),
+        drawAt: new Date(Date.now() + 86400001).toISOString(),
+      } })
+    })
+    await context.clearCookies()
+    await page.goto(base + '/#rifa/' + raffle.id)
+    const grid = page.getByLabel('Números sugeridos', { exact: true })
+    await grid.locator('button').first().waitFor()
+    await page.waitForLoadState('networkidle')
+    const batch = await grid.locator('button').allTextContents()
+    let documents = 0
+    const posts: string[] = []
+    page.on('request', (request: any) => {
+      if (request.isNavigationRequest()) documents++
+      if (request.method() === 'POST') posts.push(request.postData() || '')
+    })
+    await grid.locator('button').nth(0).click()
+    await grid.locator('button').nth(1).click()
+    await page.waitForLoadState('networkidle')
+    assert.deepEqual(await grid.locator('button').allTextContents(), batch)
+    assert.equal(await grid.locator('button.selected[aria-pressed="true"]').count(), 2)
+    await grid.locator('button').nth(0).click()
+    assert.equal(await grid.locator('button.selected[aria-pressed="true"]').count(), 1)
+    assert.equal(posts.length, 0, 'toggles must not fetch suggestions')
+    const selected = Number(batch[1])
+    const refreshed = page.waitForResponse((response: any) => response.request().method() === 'POST')
+    await page.getByRole('button', { name: 'Otros números' }).click()
+    await refreshed
+    await page.waitForFunction((n: number) => !Array.from(document.querySelectorAll('[aria-label="Números sugeridos"] button')).some(button => Number(button.textContent) === n), selected)
+    await page.waitForLoadState('networkidle')
+    assert.equal(posts.length, 1, 'explicit refresh fetches exactly one batch')
+    assert.ok(posts[0].includes('exclude'))
+    assert.ok(!(await grid.locator('button').allTextContents()).map(Number).includes(selected))
+    assert.equal(await page.getByRole('button', { name: `Quitar ${batch[1]}` }).count(), 1)
+    assert.equal(documents, 0)
+    assert.equal(pageErrors, 0)
+    assert.equal(hydrationErrors, 0)
+    console.log('PASS stable suggestions: two selections, deselection, explicit refresh preserves selection; zero navigation')
+  } else {
   stage = 'visitor private route guards'
   for (const path of ['/dashboard', '/mis-compras']) {
     await page.goto(base + path)
@@ -669,7 +725,8 @@ try {
   await context.addCookies(adminCookies)
   await page.goto(base + `/#rifa/${raffle.id}`)
   const drawStatus = page.getByRole('region', { name: 'Estado del sorteo' })
-  await drawStatus.getByText('Sorteo programado', { exact: true }).waitFor()
+  await page.waitForLoadState('networkidle')
+  assert.equal(await drawStatus.count(), 0, 'public detail no longer mounts DrawStatus')
   stage = 'active product availability and responsive selection'
   await page.waitForLoadState('networkidle')
   let realInventory = await rpc(raffleModule, 'availableInventory', { id: raffle.id, from: raffle.startNumber, limit: 1000 })
@@ -761,8 +818,8 @@ try {
     drawAt: due,
   })
   await page.reload()
-  await drawStatus.getByText('Sorteo pendiente', { exact: true }).waitFor()
-  assert.ok(!(await drawStatus.innerText()).includes('Boleto ganador'))
+  await page.waitForLoadState('networkidle')
+  assert.equal(await drawStatus.count(), 0, 'closed detail keeps DrawStatus absent')
   const beforeDraw = await (await helper('counts')).json()
   assert.equal(
     (await context.request.get(base + '/api/cron/draw')).status(),
@@ -800,9 +857,10 @@ try {
   assert.equal(adminDraw.actorId, null)
   const publicDraw = await rpc(raffleModule, 'publicDraw', { id: raffle.id })
   assert.ok(!JSON.stringify(publicDraw).includes('@'))
-  await drawStatus.getByRole('button', { name: 'Actualizar resultado' }).click()
-  await drawStatus.getByText('Boleto ganador: 0', { exact: true }).waitFor()
-  assert.ok((await drawStatus.innerText()).includes('Realizado el:'))
+  assert.equal(publicDraw.winnerTicket, 0)
+  await page.reload()
+  await page.waitForLoadState('networkidle')
+  assert.equal(await drawStatus.count(), 0, 'drawn detail keeps DrawStatus absent')
   await page.goto(base + '/dashboard#compras')
   console.log('PASS actual crypto draw, repeat result and public no-email DTO')
   stage = 'actual outbox rejects unverified recipient claims'
@@ -1269,6 +1327,31 @@ try {
       cartPage,
     ),
   )
+  await cartPage.goto(base + '/mis-compras')
+  const productCard = cartPage.locator('.purchase-card').filter({ hasText: edited.title })
+  await productCard.waitFor()
+  assert.equal(await productCard.locator('h2').innerText(), edited.title.toUpperCase())
+  assert.ok(!(await productCard.innerText()).includes(uiId))
+  assert.equal(await productCard.locator('.purchase-status').innerText(), 'APARTADO · Sin comprobante')
+  assert.equal(await productCard.locator('.raffle-price strong').innerText(), '$75.25')
+  assert.equal(await productCard.locator('.raffle-price small').innerText(), 'MXN / total')
+  const cardButton = productCard.getByRole('link', { name: /^Ver apartado:/ })
+  assert.equal(await cardButton.innerText(), 'VER APARTADO')
+  assert.deepEqual(await cardButton.evaluate((button: HTMLElement) => {
+    const style = getComputedStyle(button)
+    return [style.backgroundColor, style.clipPath.startsWith('polygon(')]
+  }), ['rgb(255, 41, 63)', true])
+  assert.ok(await productCard.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
+  for (const width of [1440, 390, 320]) {
+    await cartPage.setViewportSize({ width, height: 1000 })
+    assert.ok(await cartPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `own list overflow ${width}`)
+    const box = await productCard.boundingBox()
+    assert.ok(box && box.width <= width)
+    await cartPage.screenshot({ path: `/tmp/juliorifa-purchase-list-${width}.png`, fullPage: true })
+  }
+  await productCard.getByRole('link', { name: /^Ver apartado:/ }).click()
+  await cartPage.waitForURL(`**/mis-compras?id=${cartOrder.id}`)
+  console.log('PASS own product list image/title/status/CTA and responsive 1440/390/320')
   await cartContext.close()
   await page.goto(base + '/dashboard#compras')
   await page
@@ -1380,6 +1463,15 @@ try {
     .waitFor()
   await payment.getByText(bank.bank, { exact: true }).waitFor()
   await payment.getByText('Sin comprobante', { exact: true }).waitFor()
+  for (const width of [1440, 390, 320]) {
+    await signupPage.setViewportSize({ width, height: 900 })
+    assert.equal(await payment.evaluate((element: HTMLDialogElement) => {
+      const box = element.getBoundingClientRect()
+      return element.scrollWidth <= element.clientWidth && box.left >= 0 && box.right <= innerWidth && box.height <= innerHeight
+    }), true)
+    assert.equal(await payment.locator('.purchase-detail').evaluate((element: HTMLElement) => element.scrollWidth <= element.clientWidth), true)
+  }
+  await signupPage.setViewportSize({ width: 1440, height: 1000 })
   assert.equal(
     (await (await helper('counts')).json()).purchases,
     beforeSignupReservation.purchases + 1,
@@ -1682,6 +1774,7 @@ try {
   await page.waitForURL('**/login**')
   assert.ok(!(await page.locator('body').innerText()).includes(bank.account))
   console.log('PASS actual logout and no previous private bank/account view')
+  }
 } catch (error) {
   if (error instanceof assert.AssertionError)
     console.error(

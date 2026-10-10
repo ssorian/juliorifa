@@ -8,16 +8,31 @@ export function PurchaseSummary({ purchase }: { purchase: PurchaseDTO }) {
   const p = purchase
   return (
     <>
-      <h2>Apartado {p.id}</h2>
-      <p role="status">{statusLabel(p.status)}</p>
+      <header className="purchase-heading">
+        <div><span className="purchase-eyebrow">Tu participación</span>
+          <h2>{p.raffleTitle || 'Tu apartado'}</h2>
+        </div>
+        <span className={`purchase-status purchase-status--${p.status}`} role="status">{statusLabel(p.status)}</span>
+      </header>
+      <p className="purchase-reference">Referencia completa: <code>{p.id}</code></p>
+      <div className="purchase-overview">
+        <div><span>Importe de transferencia</span><strong>{money(p.totalCents)} MXN</strong></div>
+        <div><span>Boletos apartados</span><strong>{p.tickets.length}</strong></div>
+        <div><span>Creado:</span><p>{formatDate(p.createdAt)}</p></div>
+      </div>
       <PurchaseProgress purchase={p} />
-      <p>Creado: {formatDate(p.createdAt)}</p>
-      <p>
-        Importe de transferencia: <strong>{money(p.totalCents)} MXN</strong>
-      </p>
-      <p>
-        {p.tickets.length} boletos · {p.tickets.join(' · ')}
-      </p>
+      <section className="purchase-tickets" aria-label="Boletos de tu apartado">
+        <h3>Tus boletos</h3>
+        <div className="purchase-ticket-grid">
+          {p.tickets.slice(0, 12).map(ticket => <span className="purchase-ticket-chip" key={ticket}>{ticket}</span>)}
+        </div>
+        {p.tickets.length > 12 && <details>
+          <summary>Ver todos los {p.tickets.length} boletos</summary>
+          <div className="purchase-ticket-grid purchase-ticket-scroll" tabIndex={0} aria-label="Todos tus boletos">
+            {p.tickets.map(ticket => <span className="purchase-ticket-chip" key={ticket}>{ticket}</span>)}
+          </div>
+        </details>}
+      </section>
       {p.reviewedAt && <p>Revisado: {formatDate(p.reviewedAt)}</p>}
       {p.proofReceivedAt && (
         <p>Comprobante recibido: {formatDate(p.proofReceivedAt)}</p>

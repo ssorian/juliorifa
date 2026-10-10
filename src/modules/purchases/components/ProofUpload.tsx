@@ -37,6 +37,8 @@ export function ProofUpload({
   }
   return (
     <section className="proof-upload">
+      <h3>Envía tu comprobante</h3>
+      <p>Archivo privado, disponible solo para ti y administración. Subirlo no confirma el pago.</p>
       <label>
         Subir comprobante (PNG, JPEG, WebP o PDF; máximo 10 MB)
         <input
@@ -71,10 +73,10 @@ export function ProofUpload({
               original antes de enviar.
             </p>
           )}
-          <button disabled={busy || pending} onClick={() => setFile(null)}>
+          <button className="button secondary" disabled={busy || pending} onClick={() => setFile(null)}>
             Quitar archivo
           </button>
-          <button disabled={busy || pending} onClick={() => void send()}>
+          <button className="button primary" disabled={busy || pending} onClick={() => void send()}>
             Enviar comprobante
           </button>
           <p>

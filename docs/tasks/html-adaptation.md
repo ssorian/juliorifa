@@ -1,5 +1,79 @@
 # Adaptación HTML Nova
 
+## Detalle de apartado y diálogo — rediseño cliente
+
+- Jerarquía Nova oscura/roja: título real si el DTO lo trae, fallback «Tu apartado», referencia completa discreta, importe/cantidad/fecha y badge. Sin enriquecimiento backend ni cambio de snapshots.
+- Primeros 12 boletos en chips; disclosure nativo con todos los números y scroll acotado, incluso 1000. Snapshot bancario en grid, seguimiento rojo, historial con eventos conocidos en español y desconocidos sin reinterpretar. Upload privado conserva selección/envío explícito, MIME y callbacks originales.
+- CSS importado directamente por TicketSelection: diálogo angular acotado al viewport, cierre, ramas de login/confirmación y estimado con jerarquía. PurchaseDetail conserva montaje, ref y guards originales; no cambia autoridad, cancelación, idempotencia ni retención reviewing.
+- RED SSR observado: título seguía exponiendo UUID y no había disclosure. GREEN focalizado 10/10 (presentación, upload, contrato diálogo); TypeScript PASS. Test de audit nuevo falló primero por export ausente, no se atribuye RED conductual a ese bootstrap.
+- E2E completo intentado: pasó detalle de producto responsive y comprobantes privados previos; se detuvo en «new anonymous context same-cart native password UI», assertion 2 !== 1, antes del nuevo chequeo de geometría del diálogo. No certifica este rediseño visual 1440/390/320. No se corrigió ni se afirma corregido el bug pendiente de sugerencias; cambios heredados preservados y diagnósticos no ocultos.
+- Verificación independiente aislada con Auth real/PGlite: confirmación explícita, copia de referencia completa, disclosure de 107/1000 boletos, upload HTTP200→reviewing y cancelación PASS. Sin overflow horizontal a 1440/390/320; pageErrors=0/hydrationErrors=0. No acredita suite E2E completa ni PostgreSQL multiconexión.
+- Pendientes visuales conocidos: CSS heredado mantiene diálogo morado y máximo 600px; importe largo puede cortar decimales a 320px; motivo `proof_received` aún aparece literal. El arreglo posterior se interrumpió antes de cerrarse. El bug de sugerencias sigue sin cierre verificado.
+- Sin DB real, secretos, DDL, dependencias ni procesos ajenos. Commit/push autorizados posteriormente por el usuario; TypeScript y `git diff --check` revalidados sobre el candidato final.
+
+## Ampliación autorizada — retiro anticipado totalmente vacío
+
+- Retiro manual también antes de cierre/drawAt para active/closed/paused/scheduled/draft únicamente sin compras de ningún estado y sin ninguna occupancy, incluidos blocked. Compras cancelled/rejected/expired impiden esta excepción anticipada; las ramas vigentes de resultado y fechas vencidas sin pagos/pendientes permanecen.
+- Dos EXISTS calificados adicionales comparten la consulta por página/detalle y la relectura bajo lock; update archived sigue delegando al mismo guard administrativo fresco. Sin hard-delete ni archivo automático: permanece visible hasta el retiro manual. UI usa canArchive servidor y confirma retiro sin sorteo sin exigir Terminada.
+- RED PGlite observado: rifa futura vacía devolvía canArchive=false. GREEN focalizado: 5/5 pruebas externas, con dos nuevos casos hijos para estados vacíos futuros/reintento y rechazo por historia cancelled/rejected/expired o occupancy blocked/sold/reserved/reviewing. Conserva regresiones SQL de aliases y expiración tras rechazo. Sin DB real, secretos, DDL, build, suites globales ni commit.
+
+## Corrección P1 — correlación SQL de elegibilidad de retiro
+
+- Drizzle descalificaba columnas interpoladas dentro del SELECT sin joins: EXISTS no correlacionaba correctamente con la rifa externa. Corregido con fragmentos constantes calificados y aliases ad/ap/ao explícitos; fechas e IDs continúan parametrizados, sin concatenar valores.
+- RED observado ejecutando la consulta original en PGlite en memoria: resultado real de otra rifa no se detectaba correctamente (`canArchive=false` para la rifa con resultado). GREEN de regresión SQL: PASS. La consulta real de listado/detalle y acción archive cubre resultado propio/ajeno, pagos sin occupancy, reviewing sin occupancy, awaiting vigente, sold sin paid y reserved asociado a compra de otra rifa. Datos ajenos no bloquean una rifa vacía.
+- Expiración real conserva commit/liberación aunque reviewing impida archivo; reviewing permanece intacta. Fixture reutiliza testDatabase y migraciones exclusivamente en PGlite en memoria: no DB real, secretos, DDL operativo ni evidencia PostgreSQL multiconexión.
+- Validación final: `node --import tsx --test src/modules/raffles/services/archive-sql.test.ts src/modules/raffles/services/archive.test.ts` PASS (2 wrappers, contratos hijos); `node node_modules/typescript/bin/tsc --noEmit` PASS. Sin build/full/harness.
+
+## Catálogo — excepción autorizada de retiro sin sorteo
+
+- Retiro manual sin resultado: únicamente active/closed/paused/scheduled con salesDeadline y drawAt cumplidas, ninguna compra paid (incluso sin occupancy), ninguna reviewing/awaiting vigente ni ocupación sold/reviewing/reserved inconsistente. Con ventas se mantiene retiro tras resultado real. Draft y fechas futuras no habilitan la excepción.
+- archive exige admin fresco y lock de rifa antes de expireReservations. La expiración/liberación existente se confirma incluso si después se rechaza el retiro; reviewing nunca se cancela. Reintento archived no escribe. update con status archived delega a la misma acción estrecha e ignora cambios de campos: no permite adelantar fechas ni alterar historia para eludir el guard.
+- Metadata administrativa consulta evidencia en una consulta adicional por página/detalle con EXISTS correlacionados, sin peticiones N+1. canArchive y archiveWithoutDraw derivan de fechas/evidencia servidor; la mutación relee bajo lock. UI confirma «Retirar del catálogo sin sorteo», sin ganador ficticio; diálogo explica ausencia de participantes y muestra fecha legible.
+- RED lifecycle observado: la excepción vacía fallaba DRAW_REQUIRED_BEFORE_ARCHIVE. GREEN focalizado 4/4 pruebas externas (incluye dos contratos hijos): fechas, pagos, pendientes/ocupación, autorización/lock, rechazo tras commit y reintento. Tests de transporte simulan evidencia/expiración; no acreditan SQL real ni carreras PostgreSQL multiconexión. Sin full/build/harness, DB real, secretos, migraciones, cambios cron o commit.
+
+## Catálogo — Terminada y retiro manual tras sorteo (política anterior ampliada arriba)
+
+- DTO servidor deriva salesOpen/completed usando un único reloj por rifa. Active/closed/drawn con salesDeadline cumplido muestran Terminada; paused/scheduled y agotamiento no se convierten en terminadas. No modifica estados persistidos ni filtra el catálogo por fecha.
+- Catálogo conserva concluidas con Ver rifa. Tabla administrativa muestra Terminada y Retirar del catálogo con confirmación; antes del sorteo la acción queda deshabilitada con explicación. Sorteo y su diálogo conservan evidencia y contacto privado existentes.
+- Política elegida explícitamente: retirar **después del sorteo**. POST archiveRaffle valida requireAdmin fresco, lock de rifa, cierre y resultado realmente existente. Solo actualiza status/updatedAt; reintento archived no escribe. El update anterior también exige resultado antes de archivar, evitando saltarse esta política. Sin compras canceladas, hard-delete, migraciones ni cambios al cron.
+- Pruebas focalizadas: lifecycle, catálogo SSR, detalle previo y contrato server con transporte aislado PASS (5 pruebas externas, con subprocesos que verifican autorización antes de transacción, lock, resultado ausente e idempotencia). RED previo: derivación incorrecta y guard de archivo ausente, dos fallos conductuales. Test de archivo añadido después de implementación, sin atribuir RED retroactivo.
+- Invalida cachés mediante useAdminAction vigente. Sin filtro nuevo Terminada, build, suite global, browser, DB real, secretos, commit ni despliegue. El permiso de hooks/useAdmin.ts no corresponde al archivo .tsx existente; no fue necesario editarlo.
+
+## Detalle público — retiro del recuadro de sorteo
+
+- ProductDetail deja de montar DrawStatus y de consultar usePublicDraw. Conserva fechas del detalle, premio/features, disponibilidad, franja concluida/agotados y TicketSelection. DrawStatus, resultados en otras vistas y backend intactos.
+- RED SSR observado: dos casos seguían mostrando Estado del sorteo/Actualizar resultado, incluido resultado con boleto cero. GREEN focalizado: 4/4 pruebas externas (7 casos SSR hijos); TypeScript PASS. Sin verificación browser nueva, DB real, secretos ni commit; cambios previos preservados.
+
+## Detalle público — aviso terminal de venta
+
+- TicketSelection reemplaza todos los controles del panel cuando una lectura exitosa del servidor indica salesOpen=false o el resumen global available=0. Cierre tiene prioridad: «Esta rifa ha finalizado» frente a «Boletos agotados». Aviso grande, explicación de compra imposible y enlace al catálogo `/`.
+- No infiere agotamiento desde sugerencias vacías/exclusiones, inventario paginado, carga ni error (incluido dato cacheado de una query fallida). Guards de compra conservados y confirmación ahora exige open; no usa reloj cliente ni sold para decidir agotamiento.
+- El diálogo permanece montado fuera de la rama del panel y PurchaseDetail confirmado tiene prioridad sobre el aviso terminal. No se limpia reservedId por invalidación; recuperación idempotente y backend no cambian.
+- RED conductual observado en SSR: faltaba «Esta rifa ha finalizado» y seguían forms/selección/CONTINUAR/confirmación renderizados con venta cerrada. GREEN focalizado: 10/10 pruebas (incluye wrappers SSR y refresh), cierre/agotamiento/error/exclusiones, markup sin controles y recuperación sin replay. `node node_modules/typescript/bin/tsc --noEmit`: PASS.
+- Sin verificación browser en esta unidad: el harness genera artefactos fuera de las superficies autorizadas y no se amplió ese permiso. La preservación de PurchaseDetail se verificó por estructura y tests existentes del contrato de diálogo, no por upload interactivo tras la última reserva. Sin DB real, secretos, reinicio de servidores, commit ni despliegue.
+
+## Detalle público — franja terminal sobre el premio
+
+- ProductDetail reutiliza salesState del resumen global exitoso: cierre precede a agotamiento. Franja oscura únicamente al pie de la imagen con «RIFA CONCLUIDA» o «BOLETOS AGOTADOS» y «Ya no es posible comprar boletos»; badge coherente, eyebrow y nota de apartado ocultos en terminal. Avisos del panel derecho sin cambios.
+- Imagen, nombre, descripción, precio, fechas, disponibilidad, features y DrawStatus conservados. salesOpen=false con status active no afirma sorteo realizado; carga/error, incluso con cache terminal, no inventan cierre ni agotamiento.
+- RED SSR observado: faltaba detail-sales-strip y seguían RIFA ACTIVA, eyebrow y nota con venta cerrada. GREEN: comando focalizado ProductDetail/TicketSalesNotice/sales-state PASS (4 pruebas externas, incluye 5 casos SSR hijos); tipos PASS. Triangulación: activo, cierre y agotamiento simultáneos, agotado abierto, carga/error y resultado con boleto cero.
+- Corrección independiente sin imagen: clase detail-image-fallback, altura mínima y espacio superior para badge; franja en flujo normal, sin alterar el overlay de imágenes existentes. RED SSR observado por ausencia de clase fallback; GREEN focalizado PASS (4 pruebas externas, 6 SSR hijos), tipos PASS. SSR comprueba placeholder, franja terminal y ausencia de img; no acredita geometría browser.
+- CSS responsive con texto contrastado y posicionamiento inferior; sin verificación visual browser en esta ampliación. Sin secretos, DB real, cambios de panel derecho, reinicio de servidores ni commit.
+
+### Ajuste de texto y fecha de cierre
+
+- Franja y badge cerrado: «RIFA CONCLUIDA». La franja incluye «Fecha de cierre de venta:» con salesDeadline y formatDate de Ciudad de México, nunca drawAt. Etiqueta neutral también para cierre manual con plazo futuro, sin reloj nuevo ni afirmar que esa fecha ya ocurrió. Conserva «Ya no es posible comprar boletos»; agotamiento no añade fecha.
+- RED SSR observado: tres casos fallaron por texto anterior/fecha ausente. GREEN focalizado: 4/4 pruebas externas (7 casos SSR hijos), tipos PASS. Cobertura de fechas distintas, borde UTC/México, cierre manual futuro, agotamiento sin fecha y fallback sin imagen. CSS, panel derecho y dominio intactos; sin verificación browser nueva.
+
+## Mis apartados — lista producto
+
+- Tarjetas con imagen/fallback, nombre actual del producto (sin ID visible de rifa), seis badges con texto/color, cantidad/total MXN, fecha/folio discretos y Ver apartado. Grid responsive; carga, vacío y error legibles. Errores de query o sesión no muestran datos privados cacheados. Detalle/pagos intactos.
+- Lista propia obtiene órdenes/productos y boletos en consultas por página, sin catálogo por tarjeta ni lectura por boleto/orden. DTO allowlist sin contactos, usuario ni proof keys. Título disponible incluso archived; imagen únicamente del primer adjunto verificado, endpoint media existente y fallback para draft/archived o error. Gates Storage no cambian.
+- Conserva expiración previa: transacción bloquea rifas distintas ordenadas antes de órdenes; reutiliza expireReservations con filtro de lote y relee cuando vence alguna. Retención reviewing, liberación/auditoría e historia siguen vigentes. Las escrituras por expiración conservan el mecanismo existente; no se afirma coste constante ni concurrencia PostgreSQL multiconexión.
+- RED observado: título archived ausente, fallback ausente y caché privada renderizada durante error. GREEN final focalizado: 16/16; cubre seis estados, imagen/fallback, ownership, pending/no adjunto, archived/closed, expiración/liberación/historia y recovery original. Fallos iniciales por módulos ausentes y fixture status faltante no cuentan como RED conductual.
+- Tipos/build y harness final PASS: lista real imagen/título/status/CTA y overflow 1440/390/320; imageFailures=0, pageErrors=0, hydrationErrors=0 y logout correcto. Primera corrida falló por assertions antiguas de DrawStatus retirado; bajo autorización se reemplazaron por ausencia en detalle activo/cerrado/sorteado, manteniendo validaciones de sorteo servidor y diagnósticos.
+- Sin DB real, secretos, DDL, dependencias, reinicio del servidor del usuario, commit ni despliegue. CodeGraph no expuesto al writer; fuentes contrastadas directamente. Cambios previos preservados; ampliación de presupuesto hasta 400 líneas autorizada.
+
 ## Primer bloque UX de apartados — evidencia previa
 
 - Listado: folio corto, título solo cuando viene en el DTO; fallback a identificador de rifa. CTA por estado únicamente navega al detalle; awaiting_proof usa texto neutral, sin prometer upload después del plazo.

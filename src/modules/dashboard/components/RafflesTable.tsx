@@ -4,6 +4,7 @@ import {
   adminRaffles,
   adminDraw,
   executeDraw,
+  archiveRaffle,
 } from '../../raffles/services/server'
 import { useAdminQuery, useAdminAction } from '../hooks/useAdmin'
 import { money } from '../../../lib/utils/money'
@@ -32,6 +33,7 @@ export function RafflesTable() {
         data: { offset: page * 20, limit: 20, search, status: status as 'all' },
       }),
   )
+  const archiveAction = useAdminAction()
   const metrics = useAdminQuery('finance', '', () =>
     adminFinancialMetrics({ data: {} }),
   )
@@ -121,7 +123,7 @@ export function RafflesTable() {
                         </div>
                       </td>
                       <td>
-                        <StatusPill status={r.status} />
+                        {r.completed ? <span className="status-pill">Terminada</span> : <StatusPill status={r.status} />}
                       </td>
                       <td>{adminDate(r.drawAt)}</td>
                       <td className="money-cell">{money(r.priceCents)}</td>
@@ -173,7 +175,25 @@ export function RafflesTable() {
                           >
                             Sorteo
                           </button>
+                          {(r.completed || r.canArchive) && (
+                            <button
+                              className="text-button"
+                              disabled={archiveAction.busy || !r.canArchive}
+                              onClick={() => {
+                                if (window.confirm(r.archiveWithoutDraw ? `¿Retirar ${r.title} del catálogo sin sorteo? El servidor verificará que esté totalmente vacía o que ambas fechas hayan pasado sin pagos ni pendientes. No se generará ganador; se conservará el historial.` : `¿Retirar ${r.title} del catálogo? Se conservarán compras, historial y resultado del sorteo.`))
+                                  void archiveAction.run(
+                                    () => archiveRaffle({ data: { id: r.id } }),
+                                    'Rifa retirada del catálogo. Historial conservado.',
+                                  )
+                              }}
+                            >
+                              {r.archiveWithoutDraw ? 'Retirar del catálogo sin sorteo' : 'Retirar del catálogo'}
+                            </button>
+                          )}
                         </div>
+                        {r.completed && !r.canArchive && (
+                          <small>Retiro requiere rifa totalmente vacía, resultado o ambas fechas cumplidas sin pagos ni compras pendientes.</small>
+                        )}
                       </td>
                     </tr>
                   )
@@ -188,6 +208,7 @@ export function RafflesTable() {
           hasNext={query.data?.length === 20}
         />
       </section>
+      <ActionFeedback {...archiveAction} />
       <Feedback error={metrics.error} />
       <p className="section-note">
         Los cambios se guardan en servidor. Los boletos reservados aún no
@@ -249,7 +270,7 @@ function DrawDialog({
         compra sin resolver. Operación irreversible; nunca se introduce un
         ganador.
       </p>
-      <p>Fecha ISO: {raffle.drawAt}</p>
+      <p>Fecha del sorteo: {adminDate(raffle.drawAt)}</p>
       <Feedback pending={result.isPending} error={result.error} />
       {result.data && (
         <>
@@ -298,7 +319,7 @@ function DrawDialog({
             pendientes antes del sorteo.
           </p>
         )}
-      {readiness.data?.paidTickets === 0 && <p>No hay boletos pagados.</p>}
+      {readiness.data?.paidTickets === 0 && <p>No hay participantes pagados: no se puede realizar un sorteo ni generar un ganador. El retiro manual sin sorteo es posible si la rifa está totalmente vacía o tras ambas fechas sin pagos ni compras pendientes; las compras en revisión nunca se cancelan automáticamente.</p>}
       <ActionFeedback {...action} />
       {result.data === null &&
         !['draft', 'archived'].includes(raffle.status) && (

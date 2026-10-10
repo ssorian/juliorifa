@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { raffleAvailability, suggestedTickets } from '../services/server'
@@ -33,9 +34,20 @@ export function useRaffleAvailability(id: string) {
 }
 
 export function useSuggestedTickets(id: string, exclude: number[]) {
-  return useQuery({
-    queryKey: ['public-inventory', id, 'suggestions', [...exclude].sort((a,b) => a-b)],
-    queryFn: () => suggestedTickets({ data: { id, exclude, limit: 8 } }),
+  const batch = useRef({ id, exclude: [...exclude] })
+  if (batch.current.id !== id) batch.current = { id, exclude: [...exclude] }
+  const query = useQuery({
+    queryKey: ['public-inventory', id, 'suggestions'],
+    queryFn: () => suggestedTickets({ data: { id, exclude: batch.current.exclude, limit: 8 } }),
     retry: false,
   })
+  return {
+    ...query,
+    refresh: () => {
+      // Only an explicit refresh snapshots the current selection. Updating a
+      // ref before refetch avoids a second request for the previous batch.
+      batch.current = { id, exclude: [...exclude] }
+      return query.refetch()
+    },
+  }
 }
