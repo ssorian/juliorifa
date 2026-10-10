@@ -10,12 +10,10 @@ export function Catalog({ raffles }: { raffles: PublicRaffleDTO[] }) {
           <div>
             <p className="eyebrow">// ELIGE TU PRÓXIMO UPGRADE</p>
             <h1>
-              UN BOLETO.
-              <br />
-              UN NUEVO <em>NIVEL.</em>
+              UN BOLETO. UN NUEVO <em>NIVEL.</em>
             </h1>
           </div>
-          <span className="section-index">01 / RIFAS</span>
+          <span className="section-index">01 / RIFAS DISPONIBLES</span>
         </div>
         <div className="product-grid">
           {raffles.map((r) => (
@@ -52,18 +50,49 @@ export function Catalog({ raffles }: { raffles: PublicRaffleDTO[] }) {
                     {formatDate(r.drawAt)}
                   </span>
                 </div>
-                <p>
+                <p className="catalog-inventory-note">
                   {r.ticketCount} boletos · Consulta disponibilidad actual en la
                   rifa.
                 </p>
                 <a className="button primary" href={`#rifa/${r.id}`}>
-                  VER BOLETOS →
+                  COMPRAR BOLETOS <span aria-hidden="true">✦</span>
                 </a>
               </div>
             </article>
           ))}
         </div>
         {!raffles.length && <p>No hay rifas públicas disponibles.</p>}
+        <p className="catalog-note">
+          <span aria-hidden="true">✦</span> Elige el celular que va contigo. Cada
+          boleto es una oportunidad.
+        </p>
+      </section>
+      <section className="cta-section" aria-labelledby="catalog-cta-title">
+        <span className="cta-line" aria-hidden="true" />
+        <div>
+          <p className="eyebrow">// TU SUERTE ENTRA EN JUEGO</p>
+          <h2 id="catalog-cta-title">
+            EL SIGUIENTE
+            <br />
+            PUEDES SER
+            <br />
+            <em>TÚ.</em>
+          </h2>
+          <p>
+            Tu próximo celular empieza con un número.
+            <br />
+            Encuentra el tuyo y participa.
+          </p>
+          <a className="button primary" href="#productos">
+            QUIERO MIS BOLETOS <span aria-hidden="true">✦</span>
+          </a>
+        </div>
+        <div className="cta-art" aria-hidden="true">
+          <span className="big-number">
+            00<span>7</span>
+          </span>
+          <span className="ticket-line">TU NÚMERO. TU OPORTUNIDAD.</span>
+        </div>
       </section>
       <PublicRules />
     </>

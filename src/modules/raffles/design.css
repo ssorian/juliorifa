@@ -288,7 +288,7 @@
 }
 .nova-public .product-image-link img {
   aspect-ratio: 3/2;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform 0.5s;
 }
 .nova-public .product-card:hover img {
@@ -313,8 +313,49 @@
   letter-spacing: 0.1em;
   color: #b1a6cb;
 }
-.nova-public .product-card- {
-  padding: 22px;
+.nova-public .product-card-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.nova-public .catalog h1 {
+  font-size: clamp(2.2rem, 4.3vw, 4rem);
+}
+.nova-public .catalog .section-heading {
+  flex-wrap: wrap;
+}
+.nova-public .catalog .section-heading > div {
+  min-width: 0;
+}
+.nova-public .catalog .product-card {
+  display: flex;
+  flex-direction: column;
+}
+.nova-public .catalog .product-image-link {
+  aspect-ratio: 3/2;
+}
+.nova-public .catalog .product-image-link > p {
+  padding: 24px;
+}
+.nova-public .catalog .product-card h2 {
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.nova-public .catalog .product-spec {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.nova-public .catalog-inventory-note {
+  margin-top: 20px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.nova-public .catalog .raffle-price {
+  white-space: nowrap;
+}
+.nova-public .catalog .raffle-date {
+  max-width: 50%;
 }
 .nova-public .product-category {
   font-size: 0.8125rem;
@@ -1229,9 +1270,6 @@
   .nova-public .product-grid {
     gap: 26px;
   }
-  .nova-public .product-card- {
-    padding: 25px;
-  }
 }
 @media (max-width: 1100px) {
   .section-wrap {
@@ -1247,9 +1285,6 @@
   }
   .nova-public .product-grid {
     gap: 15px;
-  }
-  .nova-public .product-card- {
-    padding: 18px;
   }
   .nova-public .product-card h2 {
     font-size: 1.65rem;
@@ -1335,21 +1370,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 18px;
   }
-  .nova-public .product-card:last-child {
-    grid-column: 1/-1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-  .nova-public .product-card:last-child .product-image-link {
-    display: flex;
-    align-items: center;
-  }
-  .nova-public .product-card:last-child img {
-    aspect-ratio: 1/1;
-    object-fit: contain;
-  }
-  .nova-public .product-card:last-child h2 {
-    min-height: 0;
+  .nova-public .catalog .section-index {
+    display: block;
   }
   .nova-public .cta-section {
     padding: 40px 30px;
@@ -1547,22 +1569,8 @@
     grid-template-columns: 1fr;
     gap: 24px;
   }
-  .nova-public .product-card:last-child {
-    display: block;
-    grid-column: auto;
-  }
-  .nova-public .product-card:last-child .product-image-link {
-    display: block;
-  }
-  .nova-public .product-card:last-child img {
-    aspect-ratio: 3/2;
-    object-fit: cover;
-  }
   .nova-public .product-image-link img {
     aspect-ratio: 3/2;
-  }
-  .nova-public .product-card- {
-    padding: 19px 20px 21px;
   }
   .nova-public .product-card h2 {
     font-size: 2rem;

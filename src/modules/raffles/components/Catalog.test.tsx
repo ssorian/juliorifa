@@ -26,8 +26,37 @@ test('public catalog SSR uses server cents and zero-based safe DTO without fake 
   assert.match(html, /2 ene 2026, 18:00/)
   assert.doesNotMatch(html, /2026-01-03T/)
   assert.match(html, /Consulta disponibilidad actual/)
+  assert.match(html, /01 \/ RIFAS DISPONIBLES/)
+  assert.match(html, /href="#rifa\/11111111-1111-4111-8111-111111111111">COMPRAR BOLETOS/)
+  assert.match(html, /href="#productos">QUIERO MIS BOLETOS/)
+  assert.match(html, /Elige el celular que va contigo\. Cada boleto es una oportunidad\./)
+  assert.match(html, /aria-hidden="true"[^>]*><span class="big-number">00<span>7/)
+  assert.doesNotMatch(html, /% vendidos|boletos disponibles|class="progress"/)
   assert.doesNotMatch(html, /DEMO|SIMULAR|userId|feeBps|proofKey|ganador@/)
   const empty = renderToStaticMarkup(<Catalog raffles={[]} />)
   assert.match(empty, /No hay rifas públicas disponibles/)
   assert.doesNotMatch(empty, /Rifa fixture/)
+  assert.match(empty, /href="#productos">QUIERO MIS BOLETOS/)
+
+  const three = renderToStaticMarkup(
+    <Catalog
+      raffles={[0, 1, 2].map((index) => ({
+        ...r,
+        id: `fixture-${index}`,
+        status: index === 2 ? 'closed' : 'active',
+        images: [
+          {
+            key: `images/fixture-${index}`,
+            mediaUrl: `/fixture-${index}.png`,
+            alt: r.title,
+          },
+        ],
+      }))}
+    />,
+  )
+  assert.equal((three.match(/class="product-card"/g) || []).length, 3)
+  assert.equal((three.match(/COMPRAR BOLETOS/g) || []).length, 3)
+  assert.match(three, /VENTA CERRADA/)
+  assert.match(three, /href="#rifa\/fixture-2"/)
+  assert.doesNotMatch(three, /% vendidos|class="progress"/)
 })
