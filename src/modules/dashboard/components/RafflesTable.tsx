@@ -9,6 +9,7 @@ import {
 import { useAdminQuery, useAdminAction } from '../hooks/useAdmin'
 import { money } from '../../../lib/utils/money'
 import { labels } from '../lib/admin'
+import { canConfirmManualDraw } from '../lib/manual-draw'
 import { Feedback, Pager, ActionFeedback } from './Feedback'
 import { RaffleEditor } from './RaffleEditor'
 import { InventoryDialog } from './InventoryDialog'
@@ -170,14 +171,15 @@ export function RafflesTable() {
                             Boletos
                           </button>
                           <button
-                            className="text-button"
+                            className="button ghost draw-row-button"
                             onClick={() => setDrawing(r)}
                           >
-                            Sorteo
+                            <AdminIcon name={r.status === 'drawn' ? 'eye' : 'ticket'} />
+                            {r.status === 'drawn' ? 'Ver resultado' : 'Realizar sorteo'}
                           </button>
                           {(r.completed || r.canArchive) && (
                             <button
-                              className="text-button"
+                              className="button ghost retire-row-button"
                               disabled={archiveAction.busy || !r.canArchive}
                               onClick={() => {
                                 if (window.confirm(r.archiveWithoutDraw ? `¿Retirar ${r.title} del catálogo sin sorteo? El servidor verificará que esté totalmente vacía o que ambas fechas hayan pasado sin pagos ni pendientes. No se generará ganador; se conservará el historial.` : `¿Retirar ${r.title} del catálogo? Se conservarán compras, historial y resultado del sorteo.`))
@@ -187,6 +189,7 @@ export function RafflesTable() {
                                   )
                               }}
                             >
+                              <AdminIcon name="archive" />
                               {r.archiveWithoutDraw ? 'Retirar del catálogo sin sorteo' : 'Retirar del catálogo'}
                             </button>
                           )}
@@ -234,6 +237,14 @@ export function RafflesTable() {
     </>
   )
 }
+function drawDate(value: string) {
+  return new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Mexico_City',
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
+
 function DrawDialog({
   raffle,
   onClose,
@@ -241,6 +252,7 @@ function DrawDialog({
   raffle: AdminRaffle
   onClose: () => void
 }) {
+  const [confirming, setConfirming] = useState(false)
   const [due, setDue] = useState(false)
   useEffect(() => {
     const check = () =>
@@ -259,22 +271,36 @@ function DrawDialog({
       adminDraw({ data: { id: raffle.id } }),
     ),
     action = useAdminAction()
+  const checkingRequirements = result.isFetching || readiness.isFetching
+  const canConfirm = canConfirmManualDraw({
+    status: raffle.status, due, busy: action.busy || checkingRequirements,
+    result: result.isError ? undefined : result.data,
+    readiness: readiness.isError ? undefined : readiness.data,
+  })
   return (
-    <AdminDialog label="Sorteo" onClose={onClose} busy={action.busy}>
-      <h2>Sorteo: {raffle.title}</h2>
-      <button disabled={action.busy} onClick={onClose}>
-        Cerrar
-      </button>
-      <p>
-        Solo boletos pagados. El servidor exige fecha correcta, cierre y ninguna
-        compra sin resolver. Operación irreversible; nunca se introduce un
-        ganador.
-      </p>
-      <p>Fecha del sorteo: {adminDate(raffle.drawAt)}</p>
+    <AdminDialog label="Sorteo" className="draw-dialog" onClose={onClose} busy={action.busy}>
+      <header className="dialog-header">
+        <div>
+          <span className="small-eyebrow">SORTEO MANUAL</span>
+          <h2>{raffle.title}</h2>
+        </div>
+        <button className="icon-button" aria-label="Cerrar" disabled={action.busy} onClick={onClose}>
+          <AdminIcon name="close" />
+        </button>
+      </header>
+      <dl className="draw-facts">
+        <div><dt><AdminIcon name="clock" /> Cierre de ventas · CDMX</dt><dd>{drawDate(raffle.salesDeadline)}</dd></div>
+        <div><dt><AdminIcon name="clock" /> Fecha del sorteo · CDMX</dt><dd>{drawDate(raffle.drawAt)}</dd></div>
+        <div><dt><AdminIcon name="ticket" /> Boletos pagados</dt><dd>{readiness.data?.paidTickets.toLocaleString('es-MX') ?? '—'} <small>participan en el sorteo</small></dd></div>
+      </dl>
       <Feedback pending={result.isPending} error={result.error} />
       {result.data && (
         <>
-          <h3>Contacto del ganador (privado)</h3>
+          <section className="draw-winner">
+            <span className="small-eyebrow">RESULTADO REGISTRADO</span>
+            <h3>Boleto ganador · {result.data.winnerTicket}</h3>
+            <p>{drawDate(result.data.drawnAt)} · {result.data.candidateCount ?? '—'} boletos participantes</p>
+          <h4>Contacto del ganador (privado)</h4>
           {'winnerContact' in result.data && result.data.winnerContact ? (
             <p>
               {result.data.winnerContact.name} ·{' '}
@@ -292,6 +318,9 @@ function DrawDialog({
             <p>Contacto no disponible (cuenta antigua).</p>
           )}
           <p>No se envían mensajes automáticamente.</p>
+          </section>
+          <details className="draw-audit">
+            <summary>Ver auditoría del sorteo</summary>
           <dl>
             {Object.entries(result.data)
               .filter(([key]) => key !== 'winnerContact')
@@ -302,9 +331,13 @@ function DrawDialog({
                 </div>
               ))}
           </dl>
+          </details>
         </>
       )}
       <Feedback error={readiness.error} pending={readiness.isPending} />
+      {!result.data && <section className="draw-readiness" aria-label="Disponibilidad del sorteo">
+      <h3>{checkingRequirements ? 'Verificando requisitos' : canConfirm ? 'Listo para confirmar' : 'Sorteo no disponible'}</h3>
+      {['draft', 'archived'].includes(raffle.status) && <p role="alert">{raffle.status === 'archived' ? 'Esta rifa está archivada.' : 'Esta rifa es un borrador.'} No admite sorteo.</p>}
       {!due && (
         <p>
           El cierre o la fecha de sorteo aún no se cumplen. El servidor vuelve a
@@ -319,35 +352,35 @@ function DrawDialog({
             pendientes antes del sorteo.
           </p>
         )}
-      {readiness.data?.paidTickets === 0 && <p>No hay participantes pagados: no se puede realizar un sorteo ni generar un ganador. El retiro manual sin sorteo es posible si la rifa está totalmente vacía o tras ambas fechas sin pagos ni compras pendientes; las compras en revisión nunca se cancelan automáticamente.</p>}
+      {readiness.data?.paidTickets === 0 && <p role="alert">Sin boletos pagados. No hay participantes elegibles ni se puede generar un ganador.</p>}
+      {canConfirm && <p>Fechas cumplidas y sin compras pendientes. El servidor vuelve a validar antes de elegir al ganador.</p>}
+      </section>}
+      {!result.data && <p className="draw-warning">Selección aleatoria, solo entre boletos pagados. Confirmar es irreversible; los reintentos conservan el resultado original.</p>}
       <ActionFeedback {...action} />
+      <footer className="draw-footer">
       {result.data === null &&
         !['draft', 'archived'].includes(raffle.status) && (
-          <button
-            disabled={
-              action.busy ||
-              !due ||
-              !readiness.data ||
-              readiness.data.paidTickets === 0 ||
-              readiness.data.stock.reserved > 0 ||
-              readiness.data.stock.reviewing > 0
-            }
-            onClick={() => {
-              if (
-                window.confirm(
-                  `Confirmo el sorteo irreversible de ${raffle.title}, solo boletos pagados. El resultado original se conservará en reintentos.`,
-                )
-              )
+          confirming ? (
+            <div className="draw-confirmation">
+              <p>¿Confirmar el sorteo irreversible de {raffle.title}?</p>
+              <button className="button primary" disabled={!canConfirm} onClick={() => {
                 void action.run(
                   () => executeDraw({ data: { id: raffle.id } }),
                   'Ganador registrado. Resultado y auditoría conservados.',
-                )
-            }}
-          >
-            Confirmar sorteo irreversible
-          </button>
+                ).then(() => setConfirming(false))
+              }}>Confirmar sorteo irreversible</button>
+              <button className="button ghost" disabled={action.busy} onClick={() => setConfirming(false)}>Cancelar sorteo</button>
+            </div>
+          ) : (
+            <button className="button primary" disabled={!canConfirm} onClick={() => setConfirming(true)}>
+              <AdminIcon name="ticket" />
+              Realizar sorteo
+            </button>
+          )
         )}
       <button
+        className="button ghost"
+        disabled={action.busy || result.isFetching || readiness.isFetching}
         onClick={() => {
           void result.refetch()
           void readiness.refetch()
@@ -355,6 +388,8 @@ function DrawDialog({
       >
         Actualizar resultado
       </button>
+      {!confirming && <button className="text-button" disabled={action.busy} onClick={onClose}>Cancelar</button>}
+      </footer>
     </AdminDialog>
   )
 }

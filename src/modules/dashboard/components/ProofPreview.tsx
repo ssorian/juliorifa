@@ -68,10 +68,11 @@ export function ProofPreview({ id }: { id: string }) {
         />
       )}
       <a
-        className="text-button"
+        className="button ghost"
         href={`/api/media/proofs/${id}`}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
+        referrerPolicy="no-referrer"
       >
         Abrir / descargar comprobante privado
       </a>

@@ -82,20 +82,17 @@ Secciones: **Resumen, Rifas, Compras e Ingresos**, basadas en `docs/design/Rifas
 - Compras: solicitud, snapshot bancario, comprobante privado/descarga, contacto manual y acciones auditadas de confirmación/cancelación.
 - Rifas: edición/inventario y resultado con boleto, datos del ganador y contacto manual.
 - Configuración y Notificaciones fueron retiradas de la interfaz y sus funciones actuales; no reactivarlas basándose en descripciones históricas. Tablas/migraciones históricas no se borran por ello.
-- `/api/purchases/payment-settings` responde 410. El cron de sorteos no activa trabajadores históricos de correo o Storage.
+- `/api/purchases/payment-settings` responde 410. No hay cron de sorteos ni activación de trabajadores históricos de correo o Storage.
 
-## Sorteo y Vercel Hobby
+## Sorteo exclusivamente manual
 
 - Selección uniforme por **boleto pagado**, mediante `crypto.randomInt`; no permitir ganador, índice ni aleatoriedad enviados por cliente.
 - Cumplir cierre de ventas y fecha de sorteo; resolver solicitudes pendientes antes de ejecutar. No cancelar `reviewing` para forzar un ganador.
 - Resultado y auditoría inmutables/idempotentes: reintentos conservan el ganador original.
-- Manual: administrador autenticado. Automático: `source=automatic`, actor NULL; manual: `source=manual`, actor humano no nulo. CHECK de base de datos y FK preservan esta distinción; no crear un administrador ficticio para el cron.
-- `vercel.json`: GET `/api/cron/draw`, cron `0 12 * * *` (**12:00 UTC / 06:00 Ciudad de México**).
-- El usuario eligió **Vercel Hobby y revisión diaria**: no prometer ejecución exacta a `drawAt`. Hobby puede retrasarse hasta 59 minutos; Vercel no reintenta automáticamente fallos.
-- Endpoint exige `Authorization: Bearer <CRON_SECRET>` antes de cargar DB; falta de configuración → 503, token incorrecto/ausente → 401. Cookies admin no sustituyen el secreto.
-- Respuesta privada/no-store con conteos/códigos sanitizados, sin contactos ni errores SQL crudos.
-- Lote habitual 10, máximo interno 25. Filtrar elegibilidad **antes de LIMIT** para que rifas pendientes/vacías no bloqueen las listas. Expirar `awaiting_proof` vencidas dentro del flujo transaccional existente.
-- Pendientes/fallidas se reconsideran en revisiones posteriores. Mantener botón de sorteo manual y actualización de resultado en el panel.
+- Solo administrador autenticado: botón de fila **Realizar sorteo** → diálogo existente → confirmación irreversible explícita o cancelación. Abrir/cancelar no ejecuta; resultado existente usa **Ver resultado**.
+- Borradores, archivadas, cero boletos pagados o compras pendientes no permiten sortear. Ambas fechas deben haberse cumplido; el servidor sigue siendo la autoridad.
+- `vercel.json` no programa cron. GET `/api/cron/draw` es compatibilidad inerte: siempre **410**, private/no-store, sin importar DB/runner ni depender del token. El servicio automático histórico tampoco ejecuta.
+- Conservar migraciones, `source=automatic`/actor NULL históricos y constraints; nuevas ejecuciones son `source=manual` con actor humano. Las instrucciones históricas de activar cron/CRON_SECRET en docs quedan reemplazadas por esta decisión.
 
 ## Datos reales, secretos y activación
 
@@ -107,7 +104,7 @@ Secciones: **Resumen, Rifas, Compras e Ingresos**, basadas en `docs/design/Rifas
 - Desarrollo tuvo 0000–0004 aplicadas bajo autorización previa; esa evidencia no autoriza repetirlas sobre otra DB o producción. Reconciliar baseline y journal antes de migrar.
 - `drizzle/0005_phone_automatic_draw.sql` agrega teléfono y auditoría automática. **Aplicada con Drizzle bajo autorización explícita en la DB configurada de este workspace**: historial 0000–0005 verificado por hash/fecha, `phone` nullable y constraints confirmados. Esto no acredita su aplicación en otro destino ni activa cron/despliegue.
 - Conservar journal/snapshot coherentes; no modificar snapshots históricos. Snapshot 0005 comparado con esquema actual genera cero DDL: esto no significa que la migración fue aplicada.
-- Para activar: aplicar migración revisada y autorizada **antes de desplegar código que consulta `phone`**, configurar `CRON_SECRET` servidor en Vercel y desplegar. No hay cron ni mensajes reales activados por las pruebas.
+- Para otro destino: aplicar migración revisada y autorizada **antes de desplegar código que consulta `phone`**. No configurar/activar cron de sorteo; no hay mensajes reales activados por las pruebas.
 - Commit/push/PR requieren autorización del usuario; un permiso de commit no implica push o despliegue. Excluir cambios ajenos y archivos de entorno.
 
 ## Pruebas y verificación

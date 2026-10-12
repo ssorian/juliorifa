@@ -1,5 +1,42 @@
 # Backend por bloques
 
+## Sorteo exclusivamente manual — estado vigente
+
+- Sin schedule Vercel; endpoint legado siempre 410 privado, sin DB/runner ni dependencia de token. Export automático legado falla sin consultar DB.
+- Fila abre DrawDialog; confirmación explícita dentro del diálogo y cancelación sin ejecución. Resultado original consultable. Servidor paid-only/crypto, ambas fechas, pendientes, admin, draft/archived, expiración con commit e idempotencia conservados; sin DDL.
+- RED focal: cron respondió 503 en lugar de 410; servicio tocó DB; helper manual aún inexistente. GREEN final: 10/10, incluyendo draft/archived, fechas, contacto privado/auditoría manual, constraints históricos, expiry e idempotencia.
+- Tipos/build PASS. Suite concurrencia2: 140/141, fallo `SSR product transport-isolated subprocess` al importar CSS en Node, sin cambios en este seguimiento. Lint tocado: dos errores y un warning en run.ts reproducidos con HEAD; no PASS global.
+- Seguimiento del harness: selector del carrito limitado a `.inventory-details` (sugerencias e inventario representan el mismo boleto). Se conserva exactamente una selección y boleto 0. E2E aislado completo PASS: cron inerte, sorteo manual/cancelación/reintento, carrito/login/confirmación, contacto, logout, pageErrors=0, hydrationErrors=0 e imageFailures=0. Focal 10/10, tipos y diff-check PASS; no se afirma E2E del baseline.
+- Pruebas aisladas no acreditan DB real, ACL Storage, despliegue ni mensajes. `env` preservado, sin instalación/migración/seed/commit/push.
+
+### Pulido visual del sorteo manual
+
+Corrección P2: mientras resultado o requisitos se refrescan, la elegibilidad queda deshabilitada y muestra **Verificando requisitos**, sin bloquear cierre/cancelación como una mutación. E2E retiene respuestas GET reales: RED observado (botón seguía habilitado), GREEN tras el fix y habilitación restaurada al recibir datos frescos. Focal 10/10, tipos, E2E completo y diff-check PASS; cero page/hydration/image errors. Primer intento de intercepción agotó timeout por glob que no coincidía; se corrigió el selector antes del RED válido.
+
+Botón de fila con superficie, borde e icono; diálogo Nova con cabecera/cierre accesible, fechas servidor con hora CDMX, boletos pagados, disponibilidad y confirmación irreversible diferenciada. Resultado humano con contacto privado y auditoría desplegable; sin cambios backend. Avisos de borrador/archivo/sin participantes concisos, sin instrucciones de retiro ajenas al sorteo.
+
+Verificación aislada: 10/10 focales, tipos y build PASS; E2E completo PASS, pageErrors=0, hydrationErrors=0, imageFailures=0. Asserts computed de botón y encaje/cierre del modal elegible a 1440/390; capturas `/tmp/juliorifa-draw-eligible-{1440,390}.png`. No se añadió recorrido visual específico de archivo/cero pagos; guardas deterministas existentes conservadas. Fallo global CSS 140/141 y lint históricos no revalidados ni declarados resueltos. Sin DB real, servidor3000, secretos, migraciones o commits.
+
+La tarea 23 y sus instrucciones de activación cron siguientes son **evidencia histórica**, reemplazada por este estado; no reactivar cron/CRON_SECRET.
+
+## Pulido del detalle administrativo de compras
+
+- Resumen único de cliente/estado, total y precio guardados, cantidad y fecha CDMX. Nombre de rifa mediante `adminRaffle` existente con fallback; UUID, comisión y fechas secundarias desplegables. Contacto manual privado conservado.
+- Comprobante privado limitado a 180px, descarga accesible; boletos completos en chips con scroll (incluye cero), banco con etiquetas españolas e historial traducido sin alterar motivos desconocidos. Paid sin formulario; cancelación/revisión conservan evidencia, motivo, confirmación y autoridad servidor.
+- Modal máximo 90dvh: cabecera/cierre y acciones fuera del scroll interno, CSS exclusivamente `.purchase-dialog`. No cambia Mis apartados, DTO, snapshots, backend ni guards.
+- RED de presentación observado: banco mostraba `bank`, no `Banco`. GREEN: 22/22 focales (SSR, fecha CDMX, 1000 boletos, motivos desconocidos, contacto y workflow/SQL en memoria); tipos/build PASS. Layout visual no tiene RED inventado.
+- E2E aislado completo PASS con compra real de 108 boletos, paid/reviewing/awaiting, 1440x900, 390x844 y 390x480; cabecera/cierre/footer y scroll de boletos verificados. pageErrors=0, hydrationErrors=0, imageFailures=0, contacto privado/pago/logout conservados. Capturas `/tmp/juliorifa-purchase-{reviewing,paid,awaiting-proof,108-collapsed,108-expanded}-{1440x900,390x844,390x480}.png`; build `/tmp/juliorifa-purchase-build.log`.
+- Límites: 1000 boletos cubiertos por SSR, 108 por navegador; fallbacks de banco/contacto sin fixture visual específica. No DB real, secretos, migraciones, mensajes ni servidor3000. Fallos históricos globales CSS/lint no revalidados ni declarados resueltos.
+
+### Seguimiento acotado: frescura de compra y diagnóstico de cierre
+
+- P2 confirmado: acciones de compra con datos cacheados seguían habilitadas durante refetch. RED navegador con GET real retenido: Confirmar pago `false !== true` para disabled. Fix: aprobación/rechazo/cancelación awaiting se deshabilitan y handlers rechazan mientras `query.isFetching`; cierre sigue dependiendo solo de mutación busy. Snapshot/evidencia/motivo/confirmación intactos.
+- GREEN E2E completo: aprobación/rechazo y cancelación awaiting deshabilitadas durante GET, habilitadas tras respuesta fresca, cero POST hasta click explícito. 22/22 focales, tipos y diff-check PASS; cero pageErrors/hydrationErrors/imageFailures.
+- Fallo independiente de cierre paid **no reproducido; causa desconocida**, no se declara arreglado ni fallo de baseline. Diagnóstico antes/después de restaurar 1440 y catch del click: pathname, presencia/open, nombres/disabled/rect de botones; capturas enmascaradas sin contactos/comprobantes. `/tmp/juliorifa-purchase-close-{restored,before-click}.{json,png}`: dialog open y Cerrar compra habilitado dentro del viewport; click normal pasó. Si falla generará `failure` equivalente; sin force-click, retries ni esperas ciegas.
+- Primera ejecución tras GREEN de compra falló el assert previo del sorteo antes de esperar su indicador de refetch. Se ordenó la espera existente `Verificando requisitos` antes de evaluar disabled; assertions conservadas. El siguiente recorrido completo pasó; no acredita una causa para el cierre independiente.
+- Sincronización harness posterior: el verifier independiente pasó cierre paid y GET reviewing, pero awaiting falló al evaluar disabled antes del render fetching. El helper ahora espera `Verificando compra` dentro del mismo diálogo antes de comprobar acciones disabled y cero POST, manteniendo el gate cerrado; conserva la restauración con datos frescos. Una ejecución propia completa tras este cambio PASS, pageErrors/hydrationErrors/imageFailures=0. No hubo cambio productivo; la causa del fallo antiguo de cierre sigue desconocida.
+- Retirar del catálogo: botón con superficie/borde/icono archive y estado disabled, sin cambiar elegibilidad, etiquetas, motivos ni confirmación. E2E verifica borde/background/icono y denegación de retiro de rifa pagada sin resultado. Sin eliminación ni cambios backend.
+
 ## Tarea 23 — apartado, estados, contacto y cron diario (implementación; activación pendiente)
 
 ### Cierre independiente — PASS del alcance solicitado

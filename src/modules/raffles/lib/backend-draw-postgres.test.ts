@@ -163,6 +163,18 @@ test('premature/zero/pending refuse; pending refusal commits expiry/closing, no 
     /UNRESOLVED_PURCHASES/,
   )
 })
+test('manual draw rejects drafts, archived paid raffles and a future draw date', async () => {
+  for (const status of ['draft', 'archived'] as const) {
+    const raffle = await fixture.raffle({ status })
+    await fixture.order(raffle.id, 'paid', [0])
+    await assert.rejects(performDraw(database(), raffle.id, 'a', () => 100), /INVALID_DRAW_STATE/)
+  }
+  const future = await fixture.raffle({ drawAt: new Date(200) })
+  await fixture.order(future.id, 'paid', [0])
+  await assert.rejects(performDraw(database(), future.id, 'a', () => 100), /DRAW_TOO_EARLY/)
+  const archivedEmpty = await fixture.raffle({ status: 'archived' })
+  await assert.rejects(performDraw(database(), archivedEmpty.id, 'a', () => 200), /INVALID_DRAW_STATE/)
+})
 test('draw succeeds independently of historical notification keys', async () => {
   const raffle = await fixture.raffle()
   await fixture.order(raffle.id, 'paid', [0])

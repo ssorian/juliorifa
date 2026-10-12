@@ -12,7 +12,9 @@ import { Feedback, Pager, ActionFeedback } from './Feedback'
 import { RaffleFilter } from './RaffleFilter'
 import { AdminDialog } from './AdminDialog'
 import { PurchaseFacts } from './PurchaseFacts'
-import { PurchaseRows, StatusPill, initials } from './PurchaseRows'
+import { PurchaseRows } from './PurchaseRows'
+import { adminRaffle } from '../../raffles/services/server'
+import { purchaseDate, purchaseEvent, purchaseReason } from '../lib/purchase-presentation'
 import { AdminIcon } from './AdminIcon'
 import { ProofPreview } from './ProofPreview'
 
@@ -111,6 +113,11 @@ export function OrdersTable() {
     </>
   )
 }
+function PurchaseRaffleTitle({ raffleId }: { raffleId: string }) {
+  const raffle = useAdminQuery('raffle', raffleId, () => adminRaffle({ data: { id: raffleId } }))
+  return <p className="purchase-raffle">{raffle.isPending ? 'Cargando rifa…' : raffle.error ? 'Nombre de rifa no disponible' : raffle.data?.title ?? 'Rifa no disponible'}</p>
+}
+
 export function PurchaseDialog({
   id,
   onClose,
@@ -126,7 +133,7 @@ export function PurchaseDialog({
   const [reason, setReason] = useState('')
   const order = query.data
   async function review(target: 'approve' | 'reject') {
-    if (!order || !canReview(order) || !order.proofVerified || !reason.trim())
+    if (query.isFetching || action.busy || !order || !canReview(order) || !order.proofVerified || !reason.trim())
       return
     if (
       !window.confirm(
@@ -158,10 +165,10 @@ export function PurchaseDialog({
     )
   }
   return (
-    <AdminDialog label="Detalle de compra" onClose={onClose} busy={action.busy}>
-      <div className="dialog-header">
+    <AdminDialog label="Detalle de compra" className="purchase-dialog" onClose={onClose} busy={action.busy}>
+      <header className="dialog-header">
         <div>
-          <p className="small-eyebrow">// DETALLE DE COMPRA</p>
+          <p className="small-eyebrow">DETALLE DE COMPRA</p>
           <h2>Compra {id.slice(0, 8)}</h2>
         </div>
         <button
@@ -172,39 +179,47 @@ export function PurchaseDialog({
         >
           <AdminIcon name="close" />
         </button>
-      </div>
+      </header>
+      <div className="purchase-body">
       <Feedback pending={query.isPending} error={query.error} />
       {order && (
         <>
-          <div className="purchase-intro">
-            <span className="avatar">
-              {initials(order.customer?.name ?? 'Cliente')}
-            </span>
-            <div>
-              <strong>{order.customer?.name ?? 'Cliente no disponible'}</strong>
-              <small>{order.customer?.email}</small>
-            </div>
-            <StatusPill status={order.status} />
-          </div>
-          {order.proofVerified && <ProofPreview key={id} id={id} />}
-          <details>
-            <summary>Detalles de la compra e instrucciones de pago</summary>
-            <PurchaseFacts order={order} />
-          </details>
-          {order.status === 'awaiting_proof' && (
+          <PurchaseRaffleTitle raffleId={order.raffleId} />
+          <PurchaseFacts order={order}>
+            {order.proofVerified ? <ProofPreview key={id} id={id} /> : <p className="section-note">Sin comprobante verificado disponible.</p>}
+          </PurchaseFacts>
+          {(order.status === 'awaiting_proof' || (canReview(order) && order.proofVerified)) && (
+            <label>
+              Motivo obligatorio
+              <textarea maxLength={2000} value={reason} onChange={(event) => setReason(event.target.value)} />
+            </label>
+          )}
+        </>
+      )}
+      <details className="purchase-section">
+      <summary>Historial de la compra</summary>
+      <Feedback pending={audit.isPending} error={audit.error} empty={audit.data?.length === 0} />
+      <ol className="purchase-timeline">
+        {audit.data?.map((event, i) => (
+          <li key={i}>
+            <strong>{purchaseEvent(event.type)}</strong>
+            <small>{purchaseDate(event.createdAt)} · CDMX</small>
+            <p>{purchaseReason(event.reason)}</p>
+          </li>
+        ))}
+      </ol>
+      </details>
+      <ActionFeedback {...action} />
+      </div>
+      <footer className="purchase-footer">
+          {query.isFetching && order && <span role="status">Verificando compra</span>}
+          {order?.status === 'awaiting_proof' && (
             <>
-              <label>
-                Motivo obligatorio
-                <textarea
-                  maxLength={2000}
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                />
-              </label>
               <button
                 className="button secondary"
-                disabled={action.busy || !reason.trim()}
+                disabled={action.busy || query.isFetching || !reason.trim()}
                 onClick={() => {
+                  if (query.isFetching || action.busy || !reason.trim() || order.status !== 'awaiting_proof') return
                   if (
                     window.confirm(
                       'Cancelar esta reserva y liberar sus boletos?',
@@ -227,25 +242,17 @@ export function PurchaseDialog({
               </button>
             </>
           )}
-          {canReview(order) && order.proofVerified && (
+          {order && canReview(order) && order.proofVerified && (
             <>
-              <label>
-                Motivo obligatorio
-                <textarea
-                  maxLength={2000}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                />
-              </label>
               <button
                 className="button primary"
-                disabled={action.busy || !reason.trim()}
+                disabled={action.busy || query.isFetching || !reason.trim()}
                 onClick={() => void review('approve')}
               >
                 Confirmar pago
               </button>
               <button
-                disabled={action.busy || !reason.trim()}
+                disabled={action.busy || query.isFetching || !reason.trim()}
                 className="button secondary"
                 onClick={() => void review('reject')}
               >
@@ -253,23 +260,7 @@ export function PurchaseDialog({
               </button>
             </>
           )}
-        </>
-      )}
-      <h3>Historia</h3>
-      <Feedback
-        pending={audit.isPending}
-        error={audit.error}
-        empty={audit.data?.length === 0}
-      />
-      <ul>
-        {audit.data?.map((event, i) => (
-          <li key={i}>
-            {event.createdAt} · {event.type} · {event.reason ?? 'Sin motivo'}
-          </li>
-        ))}
-      </ul>
-      <ActionFeedback {...action} />
-      <button
+      <button className="button ghost" disabled={action.busy}
         onClick={() => {
           void query.refetch()
           void audit.refetch()
@@ -277,6 +268,8 @@ export function PurchaseDialog({
       >
         Actualizar
       </button>
+      <button className="button secondary" disabled={action.busy} onClick={onClose}>Cerrar</button>
+      </footer>
     </AdminDialog>
   )
 }

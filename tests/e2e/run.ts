@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { realpathSync } from 'node:fs'
+import { realpathSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -683,9 +683,85 @@ try {
     path: '/tmp/juliorifa-admin-comprobante.png',
     fullPage: true,
   })
+  async function purchaseDiagnostics(label: string) {
+    const evidence = await page.evaluate(() => ({
+      pathname: location.pathname,
+      viewport: { width: innerWidth, height: innerHeight },
+      dialogs: Array.from(document.querySelectorAll('dialog.purchase-dialog')).map((dialog) => ({
+        open: dialog.hasAttribute('open'),
+        rect: dialog.getBoundingClientRect().toJSON(),
+        buttons: Array.from(dialog.querySelectorAll('button')).map((button) => ({
+          name: button.getAttribute('aria-label') ?? button.textContent?.trim(),
+          disabled: button.disabled,
+          rect: button.getBoundingClientRect().toJSON(),
+        })),
+      })),
+    }))
+    writeFileSync(`/tmp/juliorifa-purchase-close-${label}.json`, JSON.stringify(evidence, null, 2))
+    await page.screenshot({ path: `/tmp/juliorifa-purchase-close-${label}.png`, mask: [page.locator('.purchase-summary, .proof-preview, .purchase-bank, .purchase-raffle, .purchase-timeline, .purchase-dialog h2, .purchase-dialog textarea')] })
+  }
+  async function checkPurchaseRefresh(dialog: any, names: string[]) {
+    let release!: () => void
+    let intercepted!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    const started = new Promise<void>((resolve) => { intercepted = resolve })
+    let posts = 0
+    const countPost = (request: any) => { if (request.method() === 'POST') posts++ }
+    const hold = async (route: any) => {
+      if (route.request().method() !== 'GET' || !route.request().url().includes('_serverFn')) return route.continue()
+      const response = await route.fetch()
+      intercepted()
+      await gate
+      await route.fulfill({ response })
+    }
+    page.on('request', countPost)
+    await page.route('**/*', hold)
+    try {
+      await dialog.getByRole('button', { name: 'Actualizar', exact: true }).click()
+      await started
+      await dialog.getByText('Verificando compra', { exact: true }).waitFor()
+      for (const name of names) assert.equal(await dialog.getByRole('button', { name, exact: true }).isDisabled(), true, `${name}: cached purchase cannot authorize during refresh`)
+      assert.equal(await dialog.getByRole('button', { name: 'Cerrar compra', exact: true }).isDisabled(), false)
+      assert.equal(posts, 0, 'refresh never submits a mutation')
+    } finally {
+      release()
+      await page.unroute('**/*', hold)
+    }
+    try {
+      await dialog.getByText('Verificando compra', { exact: true }).waitFor({ state: 'hidden' })
+      for (const name of names) assert.equal(await dialog.getByRole('button', { name, exact: true }).isDisabled(), false, `${name}: fresh purchase restores eligibility`)
+      assert.equal(posts, 0, 'fresh data never submits a mutation before explicit click')
+    } finally {
+      page.off('request', countPost)
+    }
+  }
+  async function checkPurchaseLayout(dialog: any, state: string) {
+    for (const [width, height] of [[1440, 900], [390, 844], [390, 480]]) {
+      await page.setViewportSize({ width, height })
+      assert.ok(await dialog.evaluate((element: HTMLDialogElement) => {
+        const box = element.getBoundingClientRect()
+        const close = element.querySelector('[aria-label="Cerrar compra"]')!.getBoundingClientRect()
+        const footer = element.querySelector('.purchase-footer')!.getBoundingClientRect()
+        return box.top >= 0 && box.bottom <= innerHeight && box.left >= 0 && box.right <= innerWidth && element.scrollWidth <= element.clientWidth && close.top >= box.top && close.bottom <= box.bottom && footer.bottom <= box.bottom
+      }), `${state}: modal/header/footer fit ${width}x${height}`)
+      if (state === '108-expanded') {
+        await dialog.locator('.purchase-tickets').scrollIntoViewIfNeeded()
+      } else {
+        await dialog.locator('.purchase-body').evaluate((element: HTMLElement) => { element.scrollTop = 0 })
+      }
+      await page.screenshot({ path: `/tmp/juliorifa-purchase-${state}-${width}x${height}.png` })
+    }
+    await page.setViewportSize({ width: 1440, height: 900 })
+    if (state === 'paid') await purchaseDiagnostics('restored')
+  }
+  assert.equal(await purchaseDialog.locator('.purchase-summary').evaluate((element: HTMLElement) => getComputedStyle(element).display), 'block')
+  assert.equal(await purchaseDialog.getByText('Por confirmar', { exact: true }).count(), 1)
+  await checkPurchaseLayout(purchaseDialog, 'reviewing')
+  assert.equal(await proofImage.evaluate((image: HTMLImageElement) => image.getBoundingClientRect().height <= 180), true)
   await purchaseDialog
     .getByLabel('Motivo obligatorio')
     .fill('Fixture verified through purchase dialog')
+  await checkPurchaseRefresh(purchaseDialog, ['Confirmar pago', 'Cancelar compra y liberar boletos'])
   page.once('dialog', (dialog: any) => dialog.accept())
   await purchaseDialog
     .getByRole('button', { name: 'Confirmar pago', exact: true })
@@ -693,7 +769,17 @@ try {
   await purchaseDialog
     .getByText('Pago confirmado en servidor.', { exact: true })
     .waitFor()
-  await purchaseDialog.getByRole('button', { name: 'Cerrar compra' }).click()
+  await purchaseDialog.getByText('Confirmado', { exact: true }).waitFor()
+  assert.equal(await purchaseDialog.getByLabel('Motivo obligatorio').count(), 0)
+  assert.equal(await purchaseDialog.getByRole('button', { name: 'Confirmar pago', exact: true }).count(), 0)
+  await checkPurchaseLayout(purchaseDialog, 'paid')
+  try {
+    await purchaseDiagnostics('before-click')
+    await purchaseDialog.getByRole('button', { name: 'Cerrar compra' }).click()
+  } catch (error) {
+    await purchaseDiagnostics('failure')
+    throw error
+  }
   assert.equal((await approve()).status(), 200)
   console.log(
     'PASS actual private PNG preview and paid transition from Compras dialog',
@@ -820,28 +906,78 @@ try {
   await page.reload()
   await page.waitForLoadState('networkidle')
   assert.equal(await drawStatus.count(), 0, 'closed detail keeps DrawStatus absent')
+  const productBeforeDraw = page.url()
   const beforeDraw = await (await helper('counts')).json()
-  assert.equal(
-    (await context.request.get(base + '/api/cron/draw')).status(),
-    401,
-  )
-  assert.equal(
-    (
-      await context.request.get(base + '/api/cron/draw', {
-        headers: { Authorization: 'Bearer wrong-fixture' },
-      })
-    ).status(),
-    401,
-  )
-  const automatic = () =>
-    context.request.get(base + '/api/cron/draw', {
-      headers: { Authorization: 'Bearer isolated-cron-fixture-only' },
+  for (const token of [undefined, 'wrong-fixture', 'isolated-cron-fixture-only']) {
+    const response = await context.request.get(base + '/api/cron/draw', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
-  const automaticResponse = await automatic()
-  assert.equal(automaticResponse.status(), 200)
-  assert.equal((await automaticResponse.json()).completed, 1)
-  assert.equal((await (await automatic()).json()).completed, 0)
-  const drawn = await rpc(raffleModule, 'executeDraw', { id: raffle.id })
+    assert.equal(response.status(), 410)
+    assert.deepEqual(await response.json(), { error: 'AUTOMATIC_DRAW_DISABLED' })
+  }
+  assert.equal(await rpc(raffleModule, 'adminDraw', { id: raffle.id }), null)
+  await page.goto(base + '/dashboard#rifas')
+  const drawRowButton = page.locator('tbody tr').filter({ hasText: fields.title })
+    .getByRole('button', { name: 'Realizar sorteo', exact: true })
+  await drawRowButton.waitFor()
+  const retireButton = page.locator('tbody tr').filter({ hasText: fields.title }).getByRole('button', { name: 'Retirar del catálogo', exact: true })
+  assert.equal(await retireButton.isDisabled(), true, 'paid raffle without result cannot retire')
+  assert.ok(await retireButton.evaluate((button: HTMLElement) => {
+    const style = getComputedStyle(button)
+    return parseFloat(style.borderTopWidth) > 0 && style.backgroundColor !== 'rgba(0, 0, 0, 0)' && !!button.querySelector('svg')
+  }), 'retirement has a shaped surface and icon without weakening eligibility')
+  assert.ok(await drawRowButton.evaluate((button: HTMLElement) => {
+    const style = getComputedStyle(button)
+    return parseFloat(style.borderTopWidth) > 0 && style.backgroundColor !== 'rgba(0, 0, 0, 0)' && !!button.querySelector('svg')
+  }), 'manual draw row action has a shaped surface and icon')
+  await drawRowButton.click()
+  const drawDialog = page.getByRole('dialog', { name: 'Sorteo', exact: true })
+  await drawDialog.getByText('Listo para confirmar', { exact: true }).waitFor()
+  let releaseDrawRefresh!: () => void
+  let drawRefreshIntercepted!: () => void
+  const drawRefreshGate = new Promise<void>((resolve) => { releaseDrawRefresh = resolve })
+  const drawRefreshStarted = new Promise<void>((resolve) => { drawRefreshIntercepted = resolve })
+  const delayDrawRefresh = async (route: any) => {
+    if (route.request().method() !== 'GET' || !route.request().url().includes('_serverFn')) return route.continue()
+    const response = await route.fetch()
+    drawRefreshIntercepted()
+    await drawRefreshGate
+    await route.fulfill({ response })
+  }
+  await page.route('**/*', delayDrawRefresh)
+  try {
+    await drawDialog.getByRole('button', { name: 'Actualizar resultado', exact: true }).click()
+    await drawRefreshStarted
+    await drawDialog.getByText('Verificando requisitos', { exact: true }).waitFor()
+    assert.equal(await drawDialog.getByRole('button', { name: 'Realizar sorteo', exact: true }).isDisabled(), true, 'cached eligibility cannot enable a draw during refresh')
+    assert.equal(await drawDialog.getByText('Listo para confirmar', { exact: true }).count(), 0)
+  } finally {
+    releaseDrawRefresh()
+  }
+  await drawDialog.getByText('Listo para confirmar', { exact: true }).waitFor()
+  assert.equal(await drawDialog.getByRole('button', { name: 'Realizar sorteo', exact: true }).isDisabled(), false)
+  await page.unroute('**/*', delayDrawRefresh)
+  console.log('PASS draw refresh disables cached eligibility until fresh requirements arrive')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    assert.equal(await drawDialog.locator('.draw-facts > div').count(), 3)
+    assert.ok(await drawDialog.evaluate((dialog: HTMLDialogElement) => {
+      const rect = dialog.getBoundingClientRect()
+      const header = dialog.querySelector('.dialog-header')!.getBoundingClientRect()
+      const close = dialog.querySelector('[aria-label="Cerrar"]')!.getBoundingClientRect()
+      return rect.left >= 0 && rect.right <= innerWidth && dialog.scrollWidth <= dialog.clientWidth && close.top >= header.top && close.bottom <= header.bottom
+    }), `draw modal fits ${width}px with close in header`)
+    await page.screenshot({ path: `/tmp/juliorifa-draw-eligible-${width}.png` })
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await drawDialog.getByRole('button', { name: 'Realizar sorteo', exact: true }).click()
+  await drawDialog.getByRole('button', { name: 'Cancelar sorteo', exact: true }).click()
+  assert.equal(await rpc(raffleModule, 'adminDraw', { id: raffle.id }), null)
+  await drawDialog.getByRole('button', { name: 'Realizar sorteo', exact: true }).click()
+  await drawDialog.getByRole('button', { name: 'Confirmar sorteo irreversible', exact: true }).click()
+  await drawDialog.getByText('Ganador registrado. Resultado y auditoría conservados.', { exact: true }).waitFor()
+  await drawDialog.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  const drawn = await rpc(raffleModule, 'publicDraw', { id: raffle.id })
   const drawnAgain = await rpc(raffleModule, 'executeDraw', { id: raffle.id })
   assert.deepEqual(drawnAgain, drawn)
   assert.equal(drawn.winnerTicket, 0)
@@ -853,12 +989,12 @@ try {
   const adminDraw = await rpc(raffleModule, 'adminDraw', { id: raffle.id })
   assert.equal(adminDraw.randomIndex, 0)
   assert.equal(adminDraw.winnerOrderId, original.id)
-  assert.equal(adminDraw.source, 'automatic')
-  assert.equal(adminDraw.actorId, null)
+  assert.equal(adminDraw.source, 'manual')
+  assert.ok(adminDraw.actorId)
   const publicDraw = await rpc(raffleModule, 'publicDraw', { id: raffle.id })
   assert.ok(!JSON.stringify(publicDraw).includes('@'))
   assert.equal(publicDraw.winnerTicket, 0)
-  await page.reload()
+  await page.goto(productBeforeDraw)
   await page.waitForLoadState('networkidle')
   assert.equal(await drawStatus.count(), 0, 'drawn detail keeps DrawStatus absent')
   await page.goto(base + '/dashboard#compras')
@@ -1251,12 +1387,12 @@ try {
   assert.equal(cartSession.user.emailVerified, false)
   assert.equal((await (await helper('counts')).json()).messages, 0)
   assert.equal(
-    await cartPage.locator('.ticket-number[aria-pressed="true"]').count(),
+    await cartPage.locator('.inventory-details .ticket-number[aria-pressed="true"]').count(),
     1,
   )
   assert.equal(
     Number(
-      await cartPage.locator('.ticket-number[aria-pressed="true"]').innerText(),
+      await cartPage.locator('.inventory-details .ticket-number[aria-pressed="true"]').innerText(),
     ),
     0,
   )
@@ -1361,9 +1497,12 @@ try {
     name: 'Detalle de compra',
     exact: true,
   })
+  await pendingDialog.getByText('Sin comprobante', { exact: true }).waitFor()
+  await checkPurchaseLayout(pendingDialog, 'awaiting-proof')
   await pendingDialog
     .getByLabel('Motivo obligatorio')
     .fill('Fixture administrator cancels pending reservation')
+  await checkPurchaseRefresh(pendingDialog, ['Cancelar reserva y liberar boletos'])
   page.once('dialog', (dialog: any) => dialog.accept())
   await pendingDialog
     .getByRole('button', {
@@ -1592,13 +1731,11 @@ try {
     name: 'Detalle de compra',
     exact: true,
   })
-  await contactDialog
-    .getByText('Detalles de la compra e instrucciones de pago', { exact: true })
-    .click()
+  await contactDialog.locator('.purchase-summary').waitFor()
   assert.equal(
     await contactDialog
       .getByRole('link', {
-        name: 'WhatsApp manual para confirmar comprobante',
+        name: 'WhatsApp manual',
         exact: true,
       })
       .getAttribute('href'),
@@ -1654,7 +1791,7 @@ try {
   await page
     .locator('tbody tr')
     .filter({ hasText: editedTitle })
-    .getByRole('button', { name: 'Sorteo', exact: true })
+    .getByRole('button', { name: 'Ver resultado', exact: true })
     .click()
   const winnerDialog = page.getByRole('dialog', { name: 'Sorteo', exact: true })
   await winnerDialog
@@ -1738,6 +1875,29 @@ try {
   console.log(
     'PASS private short stored credential through native login UI, fresh admin session and dashboard',
   )
+  stage = 'large admin purchase presentation'
+  const largeRaffle = await rpc(raffleModule, 'createRaffle', { ...fields, images: [], title: '108 boletos · presentación', ticketCount: 108 })
+  await rpc(raffleModule, 'updateRaffle', { ...fields, images: [], id: largeRaffle.id, title: '108 boletos · presentación', ticketCount: 108, status: 'active' })
+  await context.clearCookies()
+  await context.addCookies(clientCookies)
+  const largeOrder = await rpc(purchaseModule, 'createReservation', { raffleId: largeRaffle.id, tickets: Array.from({ length: 108 }, (_, i) => i), idempotencyKey: randomBytes(16).toString('hex') })
+  await context.clearCookies()
+  await context.addCookies(adminCookies)
+  await page.goto(base + '/dashboard#compras')
+  await page.getByRole('button', { name: `Ver compra ${largeOrder.id}`, exact: true }).click()
+  const largeDialog = page.getByRole('dialog', { name: 'Detalle de compra', exact: true })
+  await largeDialog.getByText('108 boletos · presentación', { exact: true }).waitFor()
+  const ticketsSection = largeDialog.locator('details').filter({ has: page.getByText('Ver 108 boletos', { exact: true }) })
+  assert.equal(await ticketsSection.getAttribute('open'), null)
+  await checkPurchaseLayout(largeDialog, '108-collapsed')
+  await largeDialog.getByText('Ver 108 boletos', { exact: true }).click()
+  assert.equal(await largeDialog.locator('.purchase-tickets li').count(), 108)
+  assert.equal(await largeDialog.locator('.purchase-tickets li').first().innerText(), '0')
+  assert.equal(await largeDialog.locator('.purchase-tickets li').last().innerText(), '107')
+  assert.ok(await largeDialog.locator('.purchase-tickets').evaluate((element: HTMLElement) => element.clientHeight <= 180 && element.scrollHeight > element.clientHeight))
+  await checkPurchaseLayout(largeDialog, '108-expanded')
+  await largeDialog.getByRole('button', { name: 'Cerrar compra' }).click()
+  console.log('PASS large 108-ticket admin order, collapsed/scrollable tickets and responsive safe chrome')
   stage = 'desktop/mobile overflow'
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 })

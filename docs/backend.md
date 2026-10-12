@@ -1,5 +1,11 @@
 # Backend de rifas: bloques 1–4
 
+## Estado vigente — sorteo exclusivamente manual
+
+Administrador: **Realizar sorteo** en la fila abre el diálogo; confirmar explícitamente ejecuta y cancelar no genera ganador. **Ver resultado** consulta el resultado original. Se conservan crypto.randomInt, paid-only, ambas fechas cumplidas, ausencia de pendientes, autorización fresca, prohibición de draft/archived, commit de expiraciones e idempotencia.
+
+No hay schedule Vercel ni ejecución automática del servicio. GET `/api/cron/draw` siempre responde **410** private/no-store, sin cargar DB/runner y sin importar el token. Migraciones, constraints y auditoría histórica automática permanecen intactos. Las instrucciones de cron/CRON_SECRET de la tarea 23 abajo son **históricas y no deben activarse**. Ver [tarea vigente](tasks/backend.md#sorteo-exclusivamente-manual--estado-vigente).
+
 ## Activación posterior autorizada de 0005
 
 Se ejecutó `bun run db:migrate` sobre la DB configurada del servidor, previa verificación de destino e historial 0000–0004 por hash/fecha. Postflight: seis migraciones registradas, ninguna pendiente; `user.phone` nullable, `raffle_draws.source` y constraints validados. La consulta de columnas usada por Auth compila sin leer datos de cuentas. No se modificaron usuarios/contraseñas ni se probó login HTTP real; no se activó cron ni despliegue. Las referencias posteriores a “no aplicada” describen el cierre histórico, no este destino actual.
@@ -20,7 +26,7 @@ Etiquetas cliente/admin: `awaiting_proof` → **Sin comprobante**, `reviewing` �
 
 Nuevos registros requieren teléfono internacional con + y código de país, normalizado a E.164; no se adivina país. Validación formulario + middleware Better Auth para HTTP directo. `user.phone` nullable preserva cuentas existentes: no backfill, login/reservas legacy sin obligación. El resultado admin exige requireAdmin fresco antes de consultar ganador por compra→usuario y devuelve nombre/teléfono/enlace `https://wa.me/<dígitos>`; legacy muestra contacto no disponible. DTO público usa allowlist sin contacto/orderId/actor. Abrir WhatsApp es una acción **manual**; no SMS, mensajes automáticos ni credenciales de proveedor. Ver [auth.md](auth.md).
 
-### Cron Vercel Hobby
+### Cron Vercel Hobby — histórico, retirado
 
 `vercel.json`: GET `/api/cron/draw`, `0 12 * * *` (**12:00 UTC**, 06:00 Ciudad de México). Se eligió ejecución diaria, no puntual a drawAt. Hobby puede ejecutar hasta **59 minutos después**; Vercel **no reintenta** un fallo. Las rifas pendientes/fallidas se reconsideran al día siguiente; conservar botón administrativo manual.
 

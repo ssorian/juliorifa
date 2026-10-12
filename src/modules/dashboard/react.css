@@ -292,6 +292,152 @@ body:has(.nova-admin dialog[open]) {
   }
 }
 
+/* Manual draw presentation stays within the administrative feature. */
+.nova-admin .draw-row-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #5b3e68;
+  background: #9e83ff14;
+  color: #d4c5ff;
+  border-radius: 6px;
+  padding: 9px 12px;
+  white-space: nowrap;
+}
+.nova-admin .draw-row-button:hover {
+  background: #9e83ff28;
+}
+.nova-admin .retire-row-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface2);
+  color: var(--muted);
+}
+.nova-admin .retire-row-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.nova-admin .draw-dialog {
+  max-width: 680px;
+  border-radius: 12px;
+}
+.nova-admin .draw-dialog .dialog-header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--line);
+}
+.nova-admin .draw-dialog h2 {
+  margin: 6px 0 0;
+  font-size: 1.4rem;
+  overflow-wrap: anywhere;
+}
+.nova-admin .draw-dialog .small-eyebrow {
+  color: var(--purple);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+}
+.nova-admin .draw-dialog .draw-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 20px 0;
+}
+.nova-admin .draw-dialog .draw-facts > div,
+.nova-admin .draw-dialog .draw-readiness,
+.nova-admin .draw-dialog .draw-winner {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface2);
+}
+.nova-admin .draw-dialog .draw-facts > div:last-child {
+  grid-column: 1 / -1;
+}
+.nova-admin .draw-dialog dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.nova-admin .draw-dialog dd {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+.nova-admin .draw-dialog dd small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.nova-admin .draw-dialog h3,
+.nova-admin .draw-dialog h4 {
+  margin: 0;
+}
+.nova-admin .draw-dialog .draw-readiness p,
+.nova-admin .draw-dialog .draw-winner p {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+}
+.nova-admin .draw-dialog .draw-winner {
+  border-color: #60d7b255;
+}
+.nova-admin .draw-dialog .draw-winner h3 {
+  margin: 8px 0;
+  color: var(--green);
+  font-size: 1.4rem;
+}
+.nova-admin .draw-dialog .draw-winner h4 {
+  margin-top: 20px;
+}
+.nova-admin .draw-dialog .draw-warning {
+  padding-left: 12px;
+  border-left: 3px solid var(--amber);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.nova-admin .draw-dialog .draw-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  margin-top: 20px;
+}
+.nova-admin .draw-dialog .draw-footer .button {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.nova-admin .draw-dialog .draw-confirmation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+}
+.nova-admin .draw-dialog .draw-confirmation p {
+  width: 100%;
+  margin: 0 0 4px;
+}
+.nova-admin .draw-dialog .draw-audit dd {
+  font-size: 0.8rem;
+}
+@media (max-width: 480px) {
+  .nova-admin .draw-dialog {
+    padding: 18px;
+  }
+  .nova-admin .draw-dialog .draw-facts {
+    grid-template-columns: 1fr;
+  }
+  .nova-admin .draw-dialog .draw-footer .button {
+    width: 100%;
+  }
+}
+
 /* Keep the reference layout responsive within the dashboard, not the app root. */
 .nova-admin .react-dialog {
   margin: auto;
@@ -374,6 +520,209 @@ body:has(.nova-admin dialog[open]) {
 }
 .nova-admin .react-dialog.purchase-dialog {
   max-width: 680px;
+  padding: 0;
+  max-height: 90dvh;
+  overflow: hidden;
+  border-radius: 12px;
+}
+.nova-admin .purchase-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.nova-admin .purchase-dialog .dialog-header {
+  padding: 18px 22px;
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  align-items: flex-start;
+}
+.nova-admin .purchase-dialog .dialog-header h2 {
+  margin: 4px 0 0;
+  font-size: 1.3rem;
+}
+.nova-admin .purchase-dialog .dialog-header p {
+  margin: 0;
+}
+.nova-admin .purchase-dialog .icon-button {
+  flex-shrink: 0;
+}
+.nova-admin .purchase-dialog .purchase-body {
+  padding: 18px 22px;
+  overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+.nova-admin .purchase-dialog .purchase-raffle {
+  margin: 0 0 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.nova-admin .purchase-dialog .purchase-summary {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  background: var(--surface2);
+}
+.nova-admin .purchase-dialog .purchase-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.nova-admin .purchase-dialog .purchase-intro > div {
+  flex: 1;
+  min-width: 140px;
+  overflow-wrap: anywhere;
+}
+.nova-admin .purchase-dialog .purchase-intro small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.nova-admin .purchase-dialog .purchase-amounts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 20px 0 0;
+}
+.nova-admin .purchase-dialog .purchase-amounts > div:last-child {
+  grid-column: 1 / -1;
+}
+.nova-admin .purchase-dialog dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.nova-admin .purchase-dialog dd {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.nova-admin .purchase-dialog dd small {
+  display: block;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.nova-admin .purchase-dialog .purchase-amounts > div:first-child dd {
+  color: var(--green);
+  font-size: 1.65rem;
+  font-weight: 700;
+}
+.nova-admin .purchase-dialog .purchase-contact {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 0;
+}
+.nova-admin .purchase-dialog .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 7px;
+  white-space: normal;
+  text-align: center;
+}
+.nova-admin .purchase-dialog .purchase-contact .button {
+  margin: 0;
+}
+.nova-admin .purchase-dialog .purchase-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.nova-admin .purchase-dialog .purchase-section > summary {
+  color: var(--text);
+  font-size: 0.875rem;
+}
+.nova-admin .purchase-dialog .purchase-tickets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  list-style: none;
+  padding: 4px;
+  margin: 14px 0 0;
+}
+.nova-admin .purchase-dialog .purchase-tickets li {
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface2);
+  font-variant-numeric: tabular-nums;
+}
+.nova-admin .purchase-dialog .purchase-bank {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0 0;
+}
+.nova-admin .purchase-dialog .proof-preview {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 16px;
+}
+.nova-admin .purchase-dialog .proof-preview h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+.nova-admin .purchase-dialog .proof-preview img,
+.nova-admin .purchase-dialog .proof-preview object {
+  max-height: 180px;
+  height: 180px;
+  width: 100%;
+  object-fit: contain;
+  margin: 12px 0;
+}
+.nova-admin .purchase-dialog .proof-preview a {
+  display: inline-flex;
+  padding: 8px 12px;
+  margin: 0;
+}
+.nova-admin .purchase-dialog .purchase-timeline {
+  list-style: none;
+  padding: 0 0 0 12px;
+  border-left: 2px solid var(--line);
+}
+.nova-admin .purchase-dialog .purchase-timeline li {
+  margin: 16px 0;
+}
+.nova-admin .purchase-dialog .purchase-timeline small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+.nova-admin .purchase-dialog .purchase-timeline p {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+.nova-admin .purchase-dialog .purchase-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 14px 22px;
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+  background: var(--surface2);
+}
+.nova-admin .purchase-dialog .purchase-footer .button {
+  margin: 0;
+}
+@media (max-width: 480px) {
+  .nova-admin .purchase-dialog .dialog-header,
+  .nova-admin .purchase-dialog .purchase-body,
+  .nova-admin .purchase-dialog .purchase-footer {
+    padding: 14px;
+  }
+  .nova-admin .purchase-dialog .purchase-summary {
+    padding: 12px;
+  }
+  .nova-admin .purchase-dialog .purchase-amounts {
+    gap: 12px;
+  }
 }
 @media (max-width: 1250px) {
   .nova-admin {

@@ -47,6 +47,11 @@ const paths = {
       <path d="M12 7v5l3 2" />
     </>
   ),
+  archive: (
+    <>
+      <path d="M3 3h18v5H3zM5 8v13h14V8M10 12h4" />
+    </>
+  ),
   close: <path d="m6 6 12 12M18 6 6 18" />,
   external: <path d="M14 3h7v7m0-7-11 11M10 3H3v18h18v-7" />,
 }
