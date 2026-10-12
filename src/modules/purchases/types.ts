@@ -1,4 +1,5 @@
 import type { PurchaseStatus } from './domain'
+import type { PaymentMethod } from '../settings/domain'
 
 export interface PurchaseDTO {
   id: string
@@ -14,6 +15,7 @@ export interface PurchaseDTO {
   createdAt: string
   proofReceivedAt: string | null
   paymentInstructions: PaymentInstructions | null
+  paymentMethods?: PaymentMethod[] | null
   reviewedAt: string | null
   // Only present in requireAdmin-protected DTOs, never own/public responses.
   customer?: {

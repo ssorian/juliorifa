@@ -4,7 +4,9 @@ import type { PaymentInstructions } from './types'
 export function resolvePaymentInstructions(
   configured: PaymentInstructions | null,
   environment: Record<string, string | undefined>,
+  allowLegacy = true,
 ): PaymentInstructions | null {
+  if (!allowLegacy) return null
   const complete = (value: PaymentInstructions | null) =>
     value && Object.values(value).every((part) => part.trim())
   if (complete(configured)) return { ...configured! }

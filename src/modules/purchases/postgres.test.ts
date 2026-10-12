@@ -6,6 +6,8 @@ import { PGlite } from '@electric-sql/pglite'
 import { drizzle } from 'drizzle-orm/pglite'
 import { eq } from 'drizzle-orm'
 import * as schema from '../../db/schema'
+import { purchaseDTO, findOwnReservationByKey } from './repository'
+import { snapshotMethods } from '../settings/domain'
 import { createWorkflowRepository } from './workflow-repository'
 import type { WorkflowDatabase } from './workflow-repository'
 import {
@@ -125,6 +127,23 @@ async function fixture() {
   })
   return { orderId, raffleId, assetId, repo, read }
 }
+test('persisted method list survives edits and readonly idempotency recovery', async () => {
+  const f = await fixture()
+  const methodId = randomUUID()
+  await database.insert(schema.paymentMethods).values({ id: methodId, type: 'card', bank: 'B', beneficiary: 'N', number: '1234567890123456', updatedBy: 'a' })
+  const snapshot = snapshotMethods(await database.select().from(schema.paymentMethods).orderBy(schema.paymentMethods.position))
+  await database.update(schema.purchases).set({ paymentSnapshot: null, paymentMethodsSnapshot: snapshot }).where(eq(schema.purchases.id, f.orderId))
+  await database.update(schema.paymentMethods).set({ number: '9999999999999999', active: false }).where(eq(schema.paymentMethods.id, methodId))
+  const { order } = await f.read()
+  const dto = purchaseDTO(order, [1, 2])
+  assert.deepEqual(dto.paymentMethods, snapshot)
+  assert.equal(dto.paymentInstructions, null)
+  const recovered = await findOwnReservationByKey(database, 'u', order.idempotencyKey)
+  assert.equal(recovered?.id, f.orderId)
+  assert.deepEqual(recovered.paymentMethods, snapshot)
+  assert.equal(await findOwnReservationByKey(database, 'a', order.idempotencyKey), null)
+})
+
 test('real PostgreSQL engine: expired cancel commits release and preserves history', async () => {
   const f = await fixture()
   assert.equal(

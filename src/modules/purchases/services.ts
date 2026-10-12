@@ -42,6 +42,8 @@ import { createWorkflowRepository } from './workflow-repository'
 import { resolvePaymentInstructions } from './payment-config'
 import { raffles } from '../raffles/db/schema'
 import { listOwnProducts } from './lib/purchase-products'
+import { paymentMethods } from '../settings/db/schema'
+import { snapshotMethods } from '../settings/domain'
 
 export async function lookupOwnReservationByKey(idempotencyKey: string) {
   const actor = await requireUser()
@@ -107,8 +109,11 @@ export async function reserve(data: z.infer<typeof reserveInput>) {
       })
       .from(paymentSettings)
       .where(eq(paymentSettings.id, 1))
+    const paymentMethodsSnapshot = snapshotMethods(
+      await tx.select().from(paymentMethods).orderBy(paymentMethods.position),
+    )
     const paymentSnapshot = snapshotInstructions(
-      resolvePaymentInstructions(settingsRows.at(0) ?? null, process.env),
+      resolvePaymentInstructions(settingsRows.at(0) ?? null, process.env, paymentMethodsSnapshot === null),
     )
     const id = randomUUID()
     const [order] = await tx
@@ -118,6 +123,7 @@ export async function reserve(data: z.infer<typeof reserveInput>) {
         raffleId: raffle.id,
         userId: actor.id,
         paymentSnapshot,
+        paymentMethodsSnapshot,
         idempotencyKey: data.idempotencyKey,
         payloadDigest: digest,
         status: 'awaiting_proof',

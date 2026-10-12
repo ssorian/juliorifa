@@ -102,6 +102,7 @@ export function purchaseDTO(
     createdAt: p.createdAt.toISOString(),
     proofReceivedAt: p.proofReceivedAt?.toISOString() ?? null,
     paymentInstructions: p.paymentSnapshot,
+    paymentMethods: p.paymentMethodsSnapshot ?? null,
     reviewedAt: p.reviewedAt?.toISOString() ?? null,
   }
 }

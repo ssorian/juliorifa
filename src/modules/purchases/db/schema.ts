@@ -15,6 +15,7 @@ import { raffles } from '../../raffles/db/schema'
 import { user } from '../../auth/db/schema'
 import { mediaAssets } from '../../../lib/storage/db'
 import type { PaymentInstructions } from '../types'
+import type { PaymentMethod } from '../../settings/domain'
 
 export const purchaseStates = [
   'awaiting_proof',
@@ -43,6 +44,7 @@ export const purchases = pgTable(
     feeCents: integer('fee_cents').notNull(),
     totalCents: integer('total_cents').notNull(),
     paymentSnapshot: jsonb('payment_snapshot').$type<PaymentInstructions>(),
+    paymentMethodsSnapshot: jsonb('payment_methods_snapshot').$type<PaymentMethod[]>(),
     proofAssetId: uuid('proof_asset_id').references(() => mediaAssets.id),
     proofKey: text('proof_key'),
     proofDigest: text('proof_digest'),

@@ -28,6 +28,18 @@ const fixture: PurchaseDTO = {
   },
   reviewedAt: null,
 }
+test('new destinations suppress legacy display and preserve empty versus null', () => {
+  const methods = [{ id, type: 'clabe' as const, bank: 'Nuevo banco', beneficiary: 'Titular', number: '012345678901234567', instructions: '' }]
+  const html = renderToStaticMarkup(<PurchaseSummary purchase={{ ...fixture, paymentMethods: methods }} />)
+  assert.match(html, /Nuevo banco/)
+  assert.match(html, /Copiar CLABE/)
+  assert.doesNotMatch(html, /Cuenta fixture/)
+  const empty = renderToStaticMarkup(<PurchaseSummary purchase={{ ...fixture, paymentMethods: [] }} />)
+  assert.match(empty, /No hay destinos bancarios/)
+  assert.doesNotMatch(empty, /Cuenta fixture/)
+  assert.match(renderToStaticMarkup(<PurchaseSummary purchase={{ ...fixture, paymentMethods: null }} />), /Cuenta fixture/)
+})
+
 test('cards show product fallback, short folio and six textual status badges', () => {
   for (const [status, cta] of Object.entries({
     awaiting_proof: 'Ver instrucciones de pago',

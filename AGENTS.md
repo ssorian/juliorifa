@@ -38,7 +38,7 @@ Aplicación de rifas con apartados, comprobantes privados y aprobación manual d
 - Disponibilidad, rangos, importes, vencimiento y pertenencia se validan en servidor. La numeración puede incluir el boleto cero.
 - Importes en centavos enteros y snapshots históricos. La comisión es gasto del administrador, **no un recargo al comprador**.
 - Instrucciones bancarias de una compra son inmutables; no reemplazarlas por la cuenta actual ni inventar datos de ejemplo.
-- Para nuevos apartados se usa configuración existente o variables servidor `PAYMENT_BANK`, `PAYMENT_BENEFICIARY`, `PAYMENT_ACCOUNT`, `PAYMENT_INSTRUCTIONS`, si están completas. Si faltan, informar que no hay instrucciones; no fingir un proveedor de pago.
+- Nuevos apartados guardan la lista de destinos activos de Configuración (CLABE/tarjeta/cuenta) en un snapshot separado del objeto legacy. Si nunca existieron destinos, se admite configuración singleton/env completa; si todos están desactivados, la lista vacía NO revive legacy. Sin instrucciones, informar su ausencia; no fingir un proveedor de pago.
 - Comprobantes privados: conservar límites, validación de bytes/MIME, ownership, guards y leases existentes. Subir un archivo no confirma el pago.
 
 ## Estados de solicitudes
@@ -77,11 +77,11 @@ Los nombres visibles no cambian los estados persistidos:
 
 ## Panel administrativo vigente
 
-Secciones: **Resumen, Rifas, Compras e Ingresos**, basadas en `docs/design/Rifas-Nova-admin.html`.
+Secciones: **Resumen, Rifas, Compras, Ingresos y Configuración**, basadas en `docs/design/Rifas-Nova-admin.html`.
 
 - Compras: solicitud, snapshot bancario, comprobante privado/descarga, contacto manual y acciones auditadas de confirmación/cancelación.
 - Rifas: edición/inventario y resultado con boleto, datos del ganador y contacto manual.
-- Configuración y Notificaciones fueron retiradas de la interfaz y sus funciones actuales; no reactivarlas basándose en descripciones históricas. Tablas/migraciones históricas no se borran por ello.
+- Configuración se restaura únicamente para destinos bancarios manuales en `src/modules/settings/`; no restaura el módulo/configuración singleton histórico. Notificaciones permanece retirada. Tablas/migraciones históricas no se borran. Ver `docs/tasks/payment-methods.md`; migración 0006 aplicada bajo autorización explícita en la DB configurada de este workspace; no acredita otros destinos.
 - `/api/purchases/payment-settings` responde 410. No hay cron de sorteos ni activación de trabajadores históricos de correo o Storage.
 
 ## Sorteo exclusivamente manual

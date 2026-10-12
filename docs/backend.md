@@ -1,5 +1,13 @@
 # Backend de rifas: bloques 1–4
 
+## Destinos manuales — Configuración vigente
+
+Configuración vuelve únicamente para agregar/editar/activar/desactivar destinos CLABE (18 dígitos), tarjeta (16) y cuenta (1–20), con banco, beneficiario e instrucciones opcionales. `src/modules/settings/` posee dominio, tabla, servicios, serverFns con requireAdmin fresco y UI; consultas privadas usan caché administrativa por identidad. No procesamiento de pagos ni validación de titularidad.
+
+Cada apartado nuevo copia la lista activa ordenada en `payment_methods_snapshot`, sin modificar el objeto legacy `payment_snapshot`. DTO `paymentMethods`: null permite fallback legacy solo cuando nunca existieron entradas; [] evita revivir singleton/env cuando todas están inactivas. Reintentos por clave y recuperación conservan snapshot original. Cliente ve destinos/copias junto al upload existente, sin duplicar el banco legacy. Notificaciones/cron siguen retirados y `/api/purchases/payment-settings` sigue 410.
+
+0006 aplicada con el migrator nativo Drizzle bajo autorización explícita en la DB configurada de este workspace: historial 0000–0006 verificado por hash/fecha, cero pendientes, tabla y constraints de destinos y snapshot jsonb nullable confirmados. No acredita otros destinos ni despliegue. Build final y E2E aislado (30 checkpoints) PASS; no confundir tests PGlite con infraestructura externa activada. Contrato y evidencia: [destinos por apartado](tasks/payment-methods.md). Las afirmaciones históricas de Configuración retirada abajo quedan limitadas por esta restauración acotada.
+
 ## Estado vigente — sorteo exclusivamente manual
 
 Administrador: **Realizar sorteo** en la fila abre el diálogo; confirmar explícitamente ejecuta y cancelar no genera ganador. **Ver resultado** consulta el resultado original. Se conservan crypto.randomInt, paid-only, ambas fechas cumplidas, ausencia de pendientes, autorización fresca, prohibición de draft/archived, commit de expiraciones e idempotencia.
@@ -44,11 +52,11 @@ Fuentes operativas: [uso y precios](https://vercel.com/docs/cron-jobs/usage-and-
 
 ## Administración corregida — estado actual
 
-La administración usa únicamente **Resumen, Rifas, Compras e Ingresos**, con la estructura de `docs/design/Rifas-Nova-admin.html` y datos reales del servidor. Las secciones históricas de este documento describen implementaciones anteriores: Configuración y Notificaciones fueron retiradas, junto con sus funciones y productores de eventos. `/api/purchases/payment-settings` responde **410**; los jobs actuales solo realizan expiración y recuperación de archivos. Las tablas y migraciones históricas se conservan, sin DDL ni borrado de datos.
+La administración usa **Resumen, Rifas, Compras, Ingresos y Configuración de destinos manuales**, con la estructura de `docs/design/Rifas-Nova-admin.html` y datos reales del servidor. Las secciones históricas de este documento describen implementaciones anteriores: Configuración singleton y Notificaciones fueron retiradas, junto con sus funciones y productores de eventos. Solo destinos manuales se restauran en el módulo settings. `/api/purchases/payment-settings` responde **410**; los jobs actuales solo realizan expiración y recuperación de archivos. Las tablas y migraciones históricas se conservan, sin DDL ni borrado de datos.
 
 Compras abre un diálogo con vista privada de imágenes/PDF del comprobante, descarga alternativa y acciones reales de confirmar o cancelar compras en revisión. También permite cancelar reservas `awaiting_proof`, con autorización administrativa fresca, motivo, auditoría y liberación atómica de boletos. Confirmar pago continúa exigiendo evidencia verificada del servidor.
 
-Las instrucciones de pago ya guardadas en cada compra permanecen inmutables. Para nuevas compras se usa la configuración existente del servidor o, en su ausencia, `PAYMENT_BANK`, `PAYMENT_BENEFICIARY`, `PAYMENT_ACCOUNT` y `PAYMENT_INSTRUCTIONS`, exclusivamente en servidor y solo si están completas. No se inventan cuentas; sin instrucciones completas el snapshot es nulo y no bloquea la reserva. Esta corrección no configura proveedores ni modifica datos reales.
+Las instrucciones de pago ya guardadas en cada compra permanecen inmutables. Para nuevas compras se copia la lista de destinos activos. Únicamente si nunca existieron entradas se usa configuración legacy existente o `PAYMENT_BANK`, `PAYMENT_BENEFICIARY`, `PAYMENT_ACCOUNT` y `PAYMENT_INSTRUCTIONS`, exclusivamente en servidor y solo si están completas. Una lista explícitamente desactivada no revive legacy. No se inventan cuentas; sin instrucciones completas el snapshot es nulo y no bloquea la reserva. Esta corrección no configura proveedores ni modifica datos reales.
 
 ## Activación segura
 

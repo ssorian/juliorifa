@@ -10,6 +10,7 @@ export {
   paymentSettings,
   paymentSettingsEvents,
 } from '../modules/purchases/db/schema'
+export { paymentMethods } from '../modules/settings/db/schema'
 export { notificationOutbox } from '../modules/notifications/db/schema'
 export { mediaAssets, uploadBudgets, uploadLeases } from '../lib/storage/db'
 

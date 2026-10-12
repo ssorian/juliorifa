@@ -1,3 +1,4 @@
+import { PaymentDestinations } from '../../settings/PaymentDestinations'
 import { PurchaseProgress } from './PurchaseProgress'
 import { money } from '../../../lib/utils/money'
 import { formatDate } from '../../../lib/utils/date'
@@ -46,7 +47,9 @@ export function PurchaseSummary({ purchase }: { purchase: PurchaseDTO }) {
           administración apruebe o rechace, sin vencimiento automático.
         </p>
       )}
-      {p.paymentInstructions ? (
+      {p.paymentMethods != null ? (
+        <PaymentDestinations methods={p.paymentMethods} reference={p.id} />
+      ) : p.paymentInstructions ? (
         <div className="payment-snapshot">
           <h3>Instrucciones guardadas en tu apartado</h3>
           <dl>

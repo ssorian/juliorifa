@@ -351,11 +351,11 @@ try {
     account: 'fixture-account',
     instructions: 'Fixture transfer only',
   }
-  const settings = await context.request.post(
+  const retiredSettings = await context.request.post(
     base + '/api/purchases/payment-settings',
     { headers: { Origin: base }, data: bank },
   )
-  assert.equal(settings.status(), 410, 'retired bank configuration endpoint')
+  assert.equal(retiredSettings.status(), 410, 'retired bank configuration endpoint')
   const fields = {
     title: 'HTTP fixture prize',
     description: 'Isolated fixture',
@@ -1898,6 +1898,62 @@ try {
   await checkPurchaseLayout(largeDialog, '108-expanded')
   await largeDialog.getByRole('button', { name: 'Cerrar compra' }).click()
   console.log('PASS large 108-ticket admin order, collapsed/scrollable tickets and responsive safe chrome')
+  stage = 'structured payment methods admin UI and immutable reservation list'
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto(base + '/dashboard#configuración')
+  const settings = page.getByRole('region', { name: 'Métodos de pago' })
+  await settings.getByRole('heading', { name: 'Agregar destino' }).waitFor()
+  const destinationA = '012345678901234567'
+  const destinationB = '987654321098765432'
+  async function addDestination(number: string) {
+    await settings.getByLabel('Banco', { exact: true }).fill('Banco métodos fixture')
+    await settings.getByLabel('Beneficiario', { exact: true }).fill('Titular fixture')
+    await settings.getByLabel('Número', { exact: true }).fill(number)
+    await settings.getByRole('button', { name: 'Guardar destino', exact: true }).click()
+    await settings.locator('li').filter({ hasText: number }).waitFor()
+  }
+  await addDestination(destinationA)
+  await addDestination(destinationB)
+  const methodRaffle = await rpc(raffleModule, 'createRaffle', { ...fields, images: [], title: 'Métodos snapshot', ticketCount: 10 })
+  await rpc(raffleModule, 'updateRaffle', { ...fields, images: [], id: methodRaffle.id, title: 'Métodos snapshot', ticketCount: 10, status: 'active' })
+  await context.clearCookies()
+  await context.addCookies(clientCookies)
+  const methodsKey = randomBytes(16).toString('hex')
+  const originalMethodsOrder = await rpc(purchaseModule, 'createReservation', { raffleId: methodRaffle.id, tickets: [0], idempotencyKey: methodsKey })
+  assert.equal(originalMethodsOrder.paymentInstructions, null)
+  assert.deepEqual(originalMethodsOrder.paymentMethods.map((method: any) => method.number), [destinationA, destinationB])
+  await page.goto(base + `/mis-compras?id=${originalMethodsOrder.id}`)
+  await page.getByText(destinationA, { exact: true }).waitFor()
+  await page.getByText(destinationB, { exact: true }).waitFor()
+  assert.equal(await page.getByRole('button', { name: 'Copiar CLABE', exact: true }).count(), 2)
+  await page.getByLabel('Subir comprobante (PNG, JPEG, WebP o PDF; máximo 10 MB)', { exact: true }).waitFor()
+  await context.clearCookies()
+  await context.addCookies(adminCookies)
+  await page.goto(base + '/dashboard#configuración')
+  await settings.locator('li').filter({ hasText: destinationA }).getByRole('button', { name: 'Editar', exact: true }).click()
+  const destinationEdited = '111111111111111111'
+  await settings.getByLabel('Número', { exact: true }).fill(destinationEdited)
+  await settings.getByRole('button', { name: 'Guardar destino', exact: true }).click()
+  await settings.locator('li').filter({ hasText: destinationEdited }).waitFor()
+  const secondMethodRow = settings.locator('li').filter({ hasText: destinationB })
+  await secondMethodRow.getByRole('button', { name: 'Desactivar', exact: true }).click()
+  await secondMethodRow.getByRole('button', { name: 'Activar', exact: true }).waitFor()
+  await context.clearCookies()
+  await context.addCookies(clientCookies)
+  const retryMethodsOrder = await rpc(purchaseModule, 'createReservation', { raffleId: methodRaffle.id, tickets: [0], idempotencyKey: methodsKey })
+  assert.equal(retryMethodsOrder.id, originalMethodsOrder.id)
+  assert.deepEqual(retryMethodsOrder.paymentMethods, originalMethodsOrder.paymentMethods)
+  const laterMethodsOrder = await rpc(purchaseModule, 'createReservation', { raffleId: methodRaffle.id, tickets: [1], idempotencyKey: randomBytes(16).toString('hex') })
+  assert.deepEqual(laterMethodsOrder.paymentMethods.map((method: any) => method.number), [destinationEdited])
+  await page.goto(base + `/mis-compras?id=${originalMethodsOrder.id}`)
+  await page.getByText(destinationA, { exact: true }).waitFor()
+  await page.getByText(destinationB, { exact: true }).waitFor()
+  await page.goto(base + `/mis-compras?id=${laterMethodsOrder.id}`)
+  await page.getByText(destinationEdited, { exact: true }).waitFor()
+  assert.equal(await page.getByText(destinationB, { exact: true }).count(), 0)
+  await context.clearCookies()
+  await context.addCookies(adminCookies)
+  console.log('PASS two same-type destinations through admin UI, customer proof flow retained, edit/deactivate immutable snapshots and original idempotent retry')
   stage = 'desktop/mobile overflow'
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 })

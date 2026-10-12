@@ -13,10 +13,11 @@ import { Income } from './components/Income'
 import { Feedback } from './components/Feedback'
 import { AdminIcon } from './components/AdminIcon'
 import { RaffleEditor } from './components/RaffleEditor'
+import { PaymentMethods } from '../settings/PaymentMethods'
 import './design.css'
 import './react.css'
 
-const tabs = ['Resumen', 'Rifas', 'Compras', 'Ingresos'] as const
+const tabs = ['Resumen', 'Rifas', 'Compras', 'Ingresos', 'Configuración'] as const
 export function Dashboard() {
   const { data: session, isPending } = authClient.useSession()
   const identity = session?.user.id ?? null
@@ -96,7 +97,7 @@ function Workspace() {
               onClick={() => setTab(t)}
             >
               <AdminIcon
-                name={(['grid', 'ticket', 'cart', 'chart'] as const)[i]}
+                name={(['grid', 'ticket', 'cart', 'chart', 'grid'] as const)[i]}
               />
               {t}
             </a>
@@ -144,6 +145,7 @@ function Workspace() {
                     Rifas: 'Tus rifas',
                     Compras: 'Compras y participantes',
                     Ingresos: 'Ingresos y resultados',
+                    Configuración: 'Métodos de pago',
                   }[tab]
                 }
               </h1>
@@ -157,6 +159,7 @@ function Workspace() {
                       'Consulta los compradores, sus números y la confirmación de pago.',
                     Ingresos:
                       'Lo cobrado, lo pendiente y el costo de cada premio.',
+                    Configuración: 'Destinos bancarios para apartados nuevos.',
                   }[tab]
                 }
               </p>
@@ -175,6 +178,7 @@ function Workspace() {
           {tab === 'Rifas' && <RafflesTable />}
           {tab === 'Compras' && <OrdersTable />}
           {tab === 'Ingresos' && <Income />}
+          {tab === 'Configuración' && <PaymentMethods />}
           {creating && (
             <RaffleEditor raffle={null} onClose={() => setCreating(false)} />
           )}

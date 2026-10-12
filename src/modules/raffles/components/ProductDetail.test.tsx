@@ -5,6 +5,7 @@ import { formatDate } from '../../../lib/utils/date'
 import type { PublicRaffleDTO } from '../types/public'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { registerHooks } from 'node:module'
 
 // Keep the ordinary suite command compatible while isolating transport mocks.
 if (!process.execArgv.includes('--experimental-test-module-mocks')) {
@@ -15,6 +16,19 @@ if (!process.execArgv.includes('--experimental-test-module-mocks')) {
     assert.match(result.stdout, /SSR selection guards failed reads/)
   })
 } else {
+// Node cannot evaluate the browser stylesheet imported by TicketSelection.
+// Handle only that exact asset during this child's import; other loads still fail normally.
+const stylesheet = new URL('../../purchases/react.css', import.meta.url).href
+let stylesheetLoaded = false
+const cssLoader = registerHooks({
+  load(url, context, nextLoad) {
+    if (url === stylesheet) {
+      stylesheetLoaded = true
+      return { format: 'module', source: 'export {}', shortCircuit: true }
+    }
+    return nextLoad(url, context)
+  },
+})
 let summary: any = { isSuccess:true, data:{salesOpen:true,available:6,sold:1,ticketCount:10} }
 let suggestionData: any = { isSuccess:true, data:{salesOpen:true,suggestions:[3,5,6,7,8,9]}, refetch:async()=>{} }
 let drawResult: any = null
@@ -30,6 +44,7 @@ mock.module('../../purchases/server.ts', { namedExports:{ createReservation:asyn
 mock.module('../../purchases/components/PurchaseDetail.tsx', { namedExports:{ PurchaseDetail:()=>null } })
 mock.module('@tanstack/react-query', { namedExports:{useQueryClient:()=>({invalidateQueries:async()=>{}})} })
 const { ProductDetail } = await import('./ProductDetail')
+cssLoader.deregister()
 const raffle: PublicRaffleDTO = {
  salesOpen:true,completed:false,canArchive:false,
  id:'11111111-1111-4111-8111-111111111111',title:'Premio fixture',description:'Descripción real',status:'active',startNumber:0,ticketCount:10,priceCents:199,
@@ -37,6 +52,7 @@ const raffle: PublicRaffleDTO = {
  createdAt:'2026-01-01T00:00:00Z',updatedAt:'2026-01-01T00:00:00Z',salesDeadline:'2026-01-02T00:00:00Z',drawAt:'2026-01-03T00:00:00Z',
 }
 test('SSR product renders real paid-only metrics, features and bounded suggestions without demo/PII', () => {
+ assert.equal(stylesheetLoaded, true, 'child loader handled the real stylesheet import')
  const html=renderToStaticMarkup(<ProductDetail raffle={raffle}/>)
  assert.match(html, /PREMIO FIXTURE/)
  assert.match(html, /6 boletos disponibles/)

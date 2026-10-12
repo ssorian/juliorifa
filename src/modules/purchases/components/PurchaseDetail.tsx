@@ -156,7 +156,7 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
       <button className="button secondary" onClick={() => void copy(p.id, 'Referencia')}>
         Copiar referencia
       </button>
-      {p.paymentInstructions && (
+      {p.paymentMethods == null && p.paymentInstructions && (
         <button
           className="button secondary"
           onClick={() => void copy(p.paymentInstructions!.account, 'Cuenta')}
