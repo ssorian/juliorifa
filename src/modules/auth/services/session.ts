@@ -1,27 +1,20 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeaders } from '@tanstack/react-start/server'
-import { eq } from 'drizzle-orm'
 import { auth } from '../../../lib/auth'
-import { db } from '../../../db'
-import { user } from '../db/schema'
-import { resolveCurrentUser } from '../lib/session-resolution'
+import { readMfaAccess } from '../lib/admin-mfa'
 
-export const currentUser = createServerFn({ method: 'GET' }).handler(
-  async () => {
-    return resolveCurrentUser(
-      () =>
-        auth.api.getSession({
-          headers: getRequestHeaders(),
-          query: { disableCookieCache: true },
-        }),
-      async (id) => {
-        const records = await db
-          .select({ id: user.id, name: user.name, role: user.role })
-          .from(user)
-          .where(eq(user.id, id))
-          .limit(1)
-        return records.at(0) ?? null
-      },
-    )
-  },
-)
+// Authentication remains available before enrollment. Only business guards deny
+// unassured administrators, avoiding login/dashboard/security redirect loops.
+export const currentUser = createServerFn({ method: 'GET' }).handler(async () => {
+  const session = await auth.api.getSession({
+    headers: getRequestHeaders(), query: { disableCookieCache: true },
+  })
+  if (!session) return null
+  const access = await readMfaAccess(await auth.$context, session.session.token)
+  if (!access) return null
+  return {
+    id: access.id, name: access.name, role: access.role,
+    mfaRequired: access.role === 'admin' && !access.assured,
+    mfaEnrolled: access.enrolled,
+  }
+})

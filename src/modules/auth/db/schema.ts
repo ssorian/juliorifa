@@ -3,6 +3,8 @@ import {
   boolean,
   check,
   index,
+  integer,
+  bigint,
   pgTable,
   text,
   timestamp,
@@ -17,6 +19,7 @@ export const user = pgTable(
     emailVerified: boolean('email_verified').notNull().default(false),
     image: text('image'),
     phone: text('phone'),
+    twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
     role: text('role').notNull().default('client'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -35,6 +38,8 @@ export const session = pgTable(
     id: text('id').primaryKey(),
     expiresAt: timestamp('expires_at').notNull(),
     token: text('token').notNull().unique(),
+    mfaFactorId: text('mfa_factor_id'),
+    mfaVerifiedAt: timestamp('mfa_verified_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
     ipAddress: text('ip_address'),
@@ -45,6 +50,23 @@ export const session = pgTable(
   },
   (table) => [index('session_user_idx').on(table.userId)],
 )
+export const rateLimit = pgTable('rate_limit', {
+  id: text('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  count: integer('count').notNull(),
+  lastRequest: bigint('last_request', { mode: 'number' }).notNull(),
+})
+
+export const twoFactor = pgTable('two_factor', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().unique().references(() => user.id, { onDelete: 'cascade' }),
+  secret: text('secret').notNull(),
+  backupCodes: text('backup_codes').notNull(),
+  verified: boolean('verified').notNull().default(true),
+  failedVerificationCount: integer('failed_verification_count').notNull().default(0),
+  lockedUntil: timestamp('locked_until'),
+}, table => [index('two_factor_secret_idx').on(table.secret)])
+
 export const account = pgTable(
   'account',
   {

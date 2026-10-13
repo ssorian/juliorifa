@@ -1,5 +1,16 @@
 # Acceso por correo y contraseña
 
+## Preparación Auth distribuido y MFA administrativo — vigente
+
+Limiter nativo Better Auth 1.7.7 en PostgreSQL y TOTP nativo obligatorio para operaciones de administradores. **0008_auth_security aplicada bajo autorización explícita en la DB configurada de desarrollo/testing**: historial 0000–0008 verificado por hash/fecha, tablas del limiter/factor y columnas de assurance presentes. Credenciales y compras sin reescritura. Candidato verificado: 162/162 pruebas, tipos/build y E2E aislado completo PASS, más revisión independiente sin P1/P2. No acredita otro destino, login con credenciales reales, Supabase ni despliegue. Ver [contrato, pruebas y límites](tasks/auth-production.md). Las evidencias históricas siguientes no acreditan este candidato.
+
+- Login cliente y cuentas antiguas con teléfono NULL/contraseña corta siguen funcionando sin MFA obligatorio. Registro continúa ignorando rol público y sin verificar correo.
+- Admin sin factor puede autenticarse pero llega a `/seguridad`, no al negocio. Configura aplicación autenticadora con contraseña actual, guarda respaldos y confirma TOTP. Administrador ya enrolado completa challenge TOTP o respaldo nativo de un solo uso desde login.
+- La habilitación del factor en el usuario **no concede acceso**: cada sesión necesita assurance persistida, factor actual verificado y ambos plugins presentes. Sesiones anteriores al enrolamiento/promoción sin assurance permanecen denegadas; una nueva sesión nunca hereda assurance de otra.
+- `requireUser` aplica ese gate a administradores incluso cuando una operación owner/admin no pasa por `requireAdmin`. `currentUser` permite consultar el estado previo a MFA para evitar ciclos de redirección. Clientes conservan sus gates de ownership.
+- Administradores no pueden desactivar MFA; no se admiten dispositivos confiables, OTP por correo/SMS ni `disableSession`. Contraseñas, claves TOTP y respaldos no se guardan en localStorage ni cookies propias. Verificadores, cifrado, consumo de respaldos, cookies y sesiones siguen siendo nativos.
+- Sin recuperación automática de factor/correo. Pérdida de aplicación y respaldos requiere una operación privada futura con prueba de identidad y autorización específica; esta implementación no crea un reset.
+
 ## Corrección operativa: columna de teléfono
 
 Bajo autorización explícita se aplicó `0005_phone_automatic_draw.sql` con `bun run db:migrate` en la DB configurada del servidor. Historial 0000–0005 verificado por hash/fecha; `user.phone` existe y admite NULL. El SELECT de columnas de Auth compila: el error 42703 no era una obligación de teléfono para el administrador, sino una migración pendiente. No se alteraron cuentas/contraseñas ni se verificó login HTTP con credenciales reales. La evidencia de “no aplicada” posterior corresponde a la tarea histórica y no autoriza migrar otro destino.
@@ -32,7 +43,7 @@ Servidor: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (fallback `SER
 
 **Login/registro no dependen de Resend ni envían correo.** No se configuraron emails de verificación o recuperación; recuperar contraseña/verificar correo no están disponibles. No hay workaround público de reset. Las cuentas históricas magic-link-only, sin credencial password, necesitan recuperación futura por operador confiable fuera de banda, con prueba legítima de identidad y autorización separada. Un registro duplicado no convierte ni reemplaza esas cuentas ni sus credenciales.
 
-Rate limiter nativo activo, memoria por instancia, cinco requests por 60 segundos para cada endpoint `/sign-in/email` y `/sign-up/email`, también en desarrollo. Con múltiples instancias requiere almacenamiento compartido y configuración IP/proxy confiable. No se desactiva para pruebas: el harness espera 61 segundos al recibir 429 antes de un login legítimo. Better Auth conserva cookies y controles de origen.
+Rate limiter nativo activo con almacenamiento **database/PostgreSQL**, cinco requests por 60 segundos para cada endpoint `/sign-in/email` y `/sign-up/email`, también en desarrollo. Tabla `rate_limit` con clave única, contador y milisegundos bigint; `consume` nativo usa incremento condicionado. El plugin MFA conserva su límite nativo de tres requests por diez segundos por ruta y bloqueo de cuenta por fallos de challenge. Requiere migración 0008 y comprobar IP/proxy confiable en Vercel; las pruebas aisladas no validan headers del despliegue. No se desactiva para pruebas: el harness espera 61 segundos al recibir 429 antes de un login legítimo. Better Auth conserva cookies y controles de origen.
 
 Callbacks de ambas APIs se normalizan a `/auth/complete`, conservando únicamente checkout de 32 hex minúsculas. No aceptan destinos externos/arbitrarios ni permiten elegir rol. La UI realiza una sola navegación completa por ese gate; el redirect automático del SDK se deshabilita para evitar carreras con `location.assign`, no se deshabilitan sesiones ni cookies.
 

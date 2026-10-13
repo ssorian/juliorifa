@@ -12,11 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MisComprasRouteImport } from './routes/mis-compras'
+import { Route as SeguridadRouteImport } from './routes/seguridad'
 import { Route as SigninRouteImport } from './routes/signin'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AuthCompleteRouteImport } from './routes/auth/complete'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiCronDrawRouteImport } from './routes/api/cron/draw'
+import { Route as ApiCronMaintenanceRouteImport } from './routes/api/cron/maintenance'
 import { Route as ApiPurchasesPaymentSettingsRouteImport } from './routes/api/purchases/payment-settings'
 import { Route as ApiMediaImagesIdRouteImport } from './routes/api/media/images/$id'
 import { Route as ApiMediaProofsIdRouteImport } from './routes/api/media/proofs/$id'
@@ -40,9 +43,19 @@ const MisComprasRoute = MisComprasRouteImport.update({
   path: '/mis-compras',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SeguridadRoute = SeguridadRouteImport.update({
+  id: '/seguridad',
+  path: '/seguridad',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
   path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCompleteRoute = AuthCompleteRouteImport.update({
@@ -63,6 +76,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 const ApiCronDrawRoute = ApiCronDrawRouteImport.update({
   id: '/api/cron/draw',
   path: '/api/cron/draw',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronMaintenanceRoute = ApiCronMaintenanceRouteImport.update({
+  id: '/api/cron/maintenance',
+  path: '/api/cron/maintenance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPurchasesPaymentSettingsRoute =
@@ -106,11 +124,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/mis-compras': typeof MisComprasRoute
+  '/seguridad': typeof SeguridadRoute
   '/signin': typeof SigninRoute
+  '/api/health': typeof ApiHealthRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/draw': typeof ApiCronDrawRoute
+  '/api/cron/maintenance': typeof ApiCronMaintenanceRoute
   '/api/purchases/payment-settings': typeof ApiPurchasesPaymentSettingsRoute
   '/api/media/images/$id': typeof ApiMediaImagesIdRoute
   '/api/media/proofs/$id': typeof ApiMediaProofsIdRoute
@@ -123,11 +144,14 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/mis-compras': typeof MisComprasRoute
+  '/seguridad': typeof SeguridadRoute
   '/signin': typeof SigninRoute
+  '/api/health': typeof ApiHealthRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/dashboard': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/draw': typeof ApiCronDrawRoute
+  '/api/cron/maintenance': typeof ApiCronMaintenanceRoute
   '/api/purchases/payment-settings': typeof ApiPurchasesPaymentSettingsRoute
   '/api/media/images/$id': typeof ApiMediaImagesIdRoute
   '/api/media/proofs/$id': typeof ApiMediaProofsIdRoute
@@ -141,11 +165,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/mis-compras': typeof MisComprasRoute
+  '/seguridad': typeof SeguridadRoute
   '/signin': typeof SigninRoute
+  '/api/health': typeof ApiHealthRoute
   '/auth/complete': typeof AuthCompleteRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/draw': typeof ApiCronDrawRoute
+  '/api/cron/maintenance': typeof ApiCronMaintenanceRoute
   '/api/purchases/payment-settings': typeof ApiPurchasesPaymentSettingsRoute
   '/api/media/images/$id': typeof ApiMediaImagesIdRoute
   '/api/media/proofs/$id': typeof ApiMediaProofsIdRoute
@@ -160,11 +187,14 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/mis-compras'
+    | '/seguridad'
     | '/signin'
+    | '/api/health'
     | '/auth/complete'
     | '/dashboard/'
     | '/api/auth/$'
     | '/api/cron/draw'
+    | '/api/cron/maintenance'
     | '/api/purchases/payment-settings'
     | '/api/media/images/$id'
     | '/api/media/proofs/$id'
@@ -177,11 +207,14 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/mis-compras'
+    | '/seguridad'
     | '/signin'
+    | '/api/health'
     | '/auth/complete'
     | '/dashboard'
     | '/api/auth/$'
     | '/api/cron/draw'
+    | '/api/cron/maintenance'
     | '/api/purchases/payment-settings'
     | '/api/media/images/$id'
     | '/api/media/proofs/$id'
@@ -194,11 +227,14 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/mis-compras'
+    | '/seguridad'
     | '/signin'
+    | '/api/health'
     | '/auth/complete'
     | '/dashboard/'
     | '/api/auth/$'
     | '/api/cron/draw'
+    | '/api/cron/maintenance'
     | '/api/purchases/payment-settings'
     | '/api/media/images/$id'
     | '/api/media/proofs/$id'
@@ -212,11 +248,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   MisComprasRoute: typeof MisComprasRoute
+  SeguridadRoute: typeof SeguridadRoute
   SigninRoute: typeof SigninRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   AuthCompleteRoute: typeof AuthCompleteRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCronDrawRoute: typeof ApiCronDrawRoute
+  ApiCronMaintenanceRoute: typeof ApiCronMaintenanceRoute
   ApiPurchasesPaymentSettingsRoute: typeof ApiPurchasesPaymentSettingsRoute
   ApiMediaImagesIdRoute: typeof ApiMediaImagesIdRoute
   ApiMediaProofsIdRoute: typeof ApiMediaProofsIdRoute
@@ -249,11 +288,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MisComprasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/seguridad': {
+      id: '/seguridad'
+      path: '/seguridad'
+      fullPath: '/seguridad'
+      preLoaderRoute: typeof SeguridadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signin': {
       id: '/signin'
       path: '/signin'
       fullPath: '/signin'
       preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/complete': {
@@ -282,6 +335,13 @@ declare module '@tanstack/react-router' {
       path: '/api/cron/draw'
       fullPath: '/api/cron/draw'
       preLoaderRoute: typeof ApiCronDrawRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/maintenance': {
+      id: '/api/cron/maintenance'
+      path: '/api/cron/maintenance'
+      fullPath: '/api/cron/maintenance'
+      preLoaderRoute: typeof ApiCronMaintenanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/purchases/payment-settings': {
@@ -340,11 +400,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   MisComprasRoute: MisComprasRoute,
+  SeguridadRoute: SeguridadRoute,
   SigninRoute: SigninRoute,
+  ApiHealthRoute: ApiHealthRoute,
   AuthCompleteRoute: AuthCompleteRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCronDrawRoute: ApiCronDrawRoute,
+  ApiCronMaintenanceRoute: ApiCronMaintenanceRoute,
   ApiPurchasesPaymentSettingsRoute: ApiPurchasesPaymentSettingsRoute,
   ApiMediaImagesIdRoute: ApiMediaImagesIdRoute,
   ApiMediaProofsIdRoute: ApiMediaProofsIdRoute,

@@ -40,7 +40,7 @@ export function ProofUpload({
       <h3>Envía tu comprobante</h3>
       <p>Archivo privado, disponible solo para ti y administración. Subirlo no confirma el pago.</p>
       <label>
-        Subir comprobante (PNG, JPEG, WebP o PDF; máximo 10 MB)
+        Subir comprobante (PNG, JPEG, WebP o PDF; máximo 4 MiB)
         <input
           type="file"
           accept="image/png,image/jpeg,image/webp,application/pdf"

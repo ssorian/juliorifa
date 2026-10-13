@@ -9,6 +9,7 @@ import { usePublicDraw } from '../../raffles/hooks/usePublicRaffles'
 import { errorMessage } from '../../raffles/lib/presentation'
 import type { PurchaseDTO } from '../types'
 import { copyText } from '../lib/clipboard'
+import { proofSelectionError } from '../lib/proof-selection'
 import { formatDate } from '../../../lib/utils/date'
 
 export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
@@ -38,14 +39,9 @@ export function PurchaseDetail({ userId, id }: { userId: string; id: string }) {
     if (status === 'awaiting_proof' && deadlinePassed) void refetch()
   }, [status, deadlinePassed, refetch])
   async function upload(file: File) {
-    if (
-      !['image/png', 'image/jpeg', 'image/webp', 'application/pdf'].includes(
-        file.type,
-      ) ||
-      file.size > 10 * 1024 * 1024 ||
-      !file.size
-    ) {
-      setMessage('Selecciona PNG, JPEG, WebP o PDF, máximo 10 MB.')
+    const invalid = proofSelectionError(file)
+    if (invalid) {
+      setMessage(invalid)
       return false
     }
     setBusy(true)

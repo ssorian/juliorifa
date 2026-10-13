@@ -15,7 +15,7 @@ test('native password policy enables unverified automatic registration sessions'
     autoSignIn: true,
   })
   assert.equal(authRateLimit.enabled, true)
-  assert.equal(authRateLimit.storage, 'memory')
+  assert.equal(authRateLimit.storage, 'database')
   for (const path of ['/sign-in/email', '/sign-up/email'] as const)
     assert.deepEqual(authRateLimit.customRules[path], { max: 5, window: 60 })
 })

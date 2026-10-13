@@ -6,7 +6,7 @@ import type { AssetKind } from './supabase'
 
 export const limits = {
   image: 2 * 1024 * 1024,
-  proof: 10 * 1024 * 1024,
+  proof: 4 * 1024 * 1024,
 } as const
 export async function readBoundedBody(
   request: Request,

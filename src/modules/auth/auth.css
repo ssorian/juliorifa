@@ -124,6 +124,17 @@
   font: inherit;
   font-weight: 400;
 }
+.nova-auth .nova-mfa-saved {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.nova-auth input[type='checkbox'] {
+  width: 22px;
+  min-height: 22px;
+  padding: 0;
+  flex-shrink: 0;
+}
 .nova-auth input:hover {
   border-color: #9290a8;
 }

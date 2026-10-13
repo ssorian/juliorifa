@@ -3,7 +3,7 @@ export function proofSelectionError(file: { type: string; size: number }) {
     file.type,
   ) &&
     file.size > 0 &&
-    file.size <= 10 * 1024 * 1024
+    file.size <= 4 * 1024 * 1024
     ? null
-    : 'Selecciona PNG, JPEG, WebP o PDF, máximo 10 MB.'
+    : 'Selecciona PNG, JPEG, WebP o PDF, máximo 4 MiB.'
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BusinessContactSettings } from './BusinessContact'
 import './styles.css'
 import { useAdminQuery, useAdminAction } from '../dashboard/hooks/useAdmin'
 import { Feedback } from '../dashboard/components/Feedback'
@@ -31,6 +32,7 @@ export function PaymentMethods() {
   }
   return (
     <section aria-label="Métodos de pago" className="payment-method-settings">
+      <BusinessContactSettings />
       <p>
         Destinos para transferencia manual. No procesamos pagos ni verificamos
         la titularidad. Los cambios solo afectan apartados nuevos.

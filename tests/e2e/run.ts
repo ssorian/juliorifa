@@ -1,9 +1,38 @@
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { realpathSync, writeFileSync } from 'node:fs'
+import { realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { setTimeout as delay } from 'node:timers/promises'
+import { createOTP } from '@better-auth/utils/otp'
+import { base32 } from '@better-auth/utils/base32'
+import { enrollmentDiagnostic } from '../../src/modules/auth/lib/enrollment-diagnostic'
+
+async function enrollAdminUI(page: any, password: string) {
+  await page.waitForURL('**/seguridad')
+  // Match the established UI flows: URL/SSR markup alone does not mean that
+  // the client route and its submit handlers have finished loading.
+  await page.waitForLoadState('networkidle')
+  await page.getByLabel('Contraseña actual', { exact: true }).fill(password)
+  const [response] = await Promise.all([
+    page.waitForResponse((response: any) =>
+      new URL(response.url()).pathname === '/api/auth/two-factor/enable' &&
+      response.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Configurar aplicación autenticadora', exact: true }).click(),
+  ])
+  const diagnostic = enrollmentDiagnostic(response.status(), await response.json().catch(() => null))
+  console.log('CHECK MFA enrollment:', JSON.stringify(diagnostic))
+  assert.equal(diagnostic.status, 200, `native enrollment failed (${diagnostic.code})`)
+  assert.equal(diagnostic.nativeTotpShape, true, 'native enrollment returned unexpected shape')
+  const input = page.getByLabel('Clave de configuración', { exact: true })
+  await input.waitFor()
+  const secret = new TextDecoder().decode(base32.decode(await input.inputValue()))
+  await page.getByLabel('Guardé mis códigos de respaldo', { exact: true }).check()
+  await page.getByLabel('Código de tu aplicación autenticadora', { exact: true }).fill(await createOTP(secret).totp())
+  await page.getByRole('button', { name: 'Verificar código', exact: true }).click({ noWaitAfter: true })
+  await page.waitForURL('**/dashboard')
+  return secret // Fixture only, in memory. Never log or capture enrollment screenshots.
+}
 
 const require = createRequire(realpathSync('/home/onix/.bun/bin/playwright'))
 // Global Playwright is deliberately resolved without a project dependency.
@@ -39,6 +68,7 @@ child.stderr.on('data', (data) => {
 })
 let browser: any
 let stage = 'fixture startup'
+let authUiSnapshot: (() => Promise<unknown>) | undefined
 async function helper(path: string, method = 'GET') {
   return fetch(`${base}/__fixture/${path}`, {
     method,
@@ -81,6 +111,53 @@ try {
     return route.continue()
   })
   const page = await context.newPage()
+  // Fixed labels only. Never log request URLs, queries, bodies, headers or values.
+  const authPaths = new Map([
+    ['/api/auth/sign-in/email', 'LOGIN'],
+    ['/api/auth/two-factor/enable', 'ENABLE'],
+    ['/api/auth/two-factor/verify-totp', 'VERIFY_TOTP'],
+    ['/api/auth/two-factor/verify-backup-code', 'VERIFY_BACKUP'],
+  ])
+  const observed = { loginPosts: 0, enablePosts: 0, documentRequests: 0 }
+  page.on('request', (request: any) => {
+    if (request.isNavigationRequest()) observed.documentRequests++
+    const label = authPaths.get(new URL(request.url()).pathname)
+    if (!label) return
+    const post = request.method() === 'POST'
+    if (post && label === 'LOGIN') observed.loginPosts++
+    if (post && label === 'ENABLE') observed.enablePosts++
+    console.log(`CHECK auth request: ${label} ${post ? 'POST' : 'OTHER'}`)
+  })
+  page.on('response', (response: any) => {
+    const label = authPaths.get(new URL(response.url()).pathname)
+    if (label) console.log(`CHECK auth response: ${label} ${response.status()}`)
+  })
+  page.on('framenavigated', (frame: any) => {
+    if (frame !== page.mainFrame()) return
+    const path = new URL(frame.url()).pathname
+    const label = path === '/login' ? 'LOGIN' : path === '/seguridad' ? 'SECURITY' : path === '/dashboard' || path === '/dashboard/' ? 'DASHBOARD' : 'OTHER'
+    console.log(`CHECK auth navigation: ${label}`)
+  })
+  authUiSnapshot = async () => ({
+    ...observed,
+    ui: await page.evaluate(() => {
+      const known = new Map([
+        ['No pudimos completar el acceso. Revisa los datos o intenta más tarde.', 'LOGIN_REJECTED'],
+        ['No pudimos completar el acceso. Intenta más tarde.', 'LOGIN_TRANSPORT_ERROR'],
+        ['No pudimos iniciar la configuración. Revisa tu contraseña o intenta más tarde.', 'ENROLLMENT_REJECTED'],
+        ['No pudimos iniciar la configuración. Intenta de nuevo.', 'ENROLLMENT_ERROR'],
+        ['Introduce el código de tu aplicación o un respaldo de un solo uso.', 'CHALLENGE'],
+      ])
+      return {
+        invalidInputs: document.querySelectorAll('input:invalid').length,
+        disabledSubmit: !!document.querySelector('button[type="submit"]:disabled'),
+        statuses: Array.from(document.querySelectorAll('[role="status"]')).map(node => {
+          const text = node.textContent?.trim() ?? ''
+          return text ? known.get(text) ?? 'OTHER_NONEMPTY' : 'EMPTY'
+        }),
+      }
+    }),
+  })
   let pageErrors = 0
   let hydrationErrors = 0
   const recordPageError = (error: Error) => {
@@ -136,7 +213,39 @@ try {
     if (/hydration|hydrated|did not match/i.test(message.text()))
       hydrationErrors++
   })
-  if (process.argv.includes('--suggestions-only')) {
+  if (process.argv.includes('--mfa-only')) {
+    stage = 'isolated MFA bootstrap and native login UI'
+    const password = randomBytes(4).toString('hex')
+    assert.equal((await context.request.post(base + '/__fixture/bootstrap-admin', {
+      headers: { 'x-fixture-key': key }, data: password,
+    })).status(), 200)
+    await page.goto(base + '/login')
+    await page.waitForLoadState('networkidle')
+    await page.getByLabel('Correo electrónico', { exact: true }).fill('dev-admin@fixture.invalid')
+    await page.getByLabel('Contraseña', { exact: true }).fill(password)
+    const [loginResponse] = await Promise.all([
+      page.waitForResponse((response: any) => new URL(response.url()).pathname === '/api/auth/sign-in/email'),
+      page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click({ noWaitAfter: true }),
+    ])
+    assert.equal(loginResponse.status(), 200)
+    stage = 'isolated MFA enrollment UI'
+    const secret = await enrollAdminUI(page, password)
+    await context.clearCookies()
+    await page.goto(base + '/login')
+    await page.waitForLoadState('networkidle')
+    await page.getByLabel('Correo electrónico', { exact: true }).fill('dev-admin@fixture.invalid')
+    await page.getByLabel('Contraseña', { exact: true }).fill(password)
+    await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click({ noWaitAfter: true })
+    await page.getByRole('heading', { name: 'Verificación en dos pasos', exact: true }).waitFor()
+    assert.equal(await (await context.request.get(base + '/api/auth/get-session')).json(), null)
+    await page.getByLabel('Código de tu aplicación autenticadora', { exact: true }).fill(await createOTP(secret).totp())
+    await page.getByRole('button', { name: 'Verificar código', exact: true }).click({ noWaitAfter: true })
+    await page.waitForURL('**/dashboard')
+    await page.waitForLoadState('networkidle')
+    assert.equal(pageErrors, 0)
+    assert.equal(hydrationErrors, 0)
+    console.log('PASS isolated native enrollment, sessionless challenge, MFA login UI and dashboard')
+  } else if (process.argv.includes('--suggestions-only')) {
     stage = 'stable suggested ticket interaction'
     const password = randomBytes(24).toString('hex')
     assert.equal((await context.request.post(base + '/__fixture/bootstrap-admin', {
@@ -145,6 +254,8 @@ try {
     assert.equal((await context.request.post(base + '/api/auth/sign-in/email', {
       headers: { Origin: base }, data: { email: 'dev-admin@fixture.invalid', password: password.slice(0, 8) },
     })).status(), 200)
+    await page.goto(base + '/dashboard')
+    await enrollAdminUI(page, password.slice(0, 8))
     await page.goto(base)
     await page.waitForLoadState('networkidle')
     const raffle = await page.evaluate(async () => {
@@ -317,9 +428,29 @@ try {
   const admin = await login('admin@fixture.invalid')
   assert.equal(admin.user.role, 'admin')
   await page.goto(base + '/dashboard')
+  const adminTotpSecret = await enrollAdminUI(page, password)
   await page.waitForLoadState('networkidle')
-  assert.ok(!page.url().includes('/login'))
-  console.log('PASS native promoted admin dashboard')
+  // Exercise the real login challenge UI; an enrolled account has no session
+  // between the password response and a successful native TOTP verification.
+  await context.clearCookies()
+  await page.goto(base + '/login')
+  await page.waitForLoadState('networkidle')
+  await page.getByLabel('Correo electrónico', { exact: true }).fill('admin@fixture.invalid')
+  await page.getByLabel('Contraseña', { exact: true }).fill(password)
+  const submitMfaLogin = () => Promise.all([
+    page.waitForResponse((response: any) => response.url().includes('/api/auth/sign-in/email')),
+    page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click({ noWaitAfter: true }),
+  ])
+  let [mfaLogin] = await submitMfaLogin()
+  if (mfaLogin.status() === 429) { await delay(61000); [mfaLogin] = await submitMfaLogin() }
+  assert.equal(mfaLogin.status(), 200)
+  await page.getByRole('heading', { name: 'Verificación en dos pasos', exact: true }).waitFor()
+  assert.equal(await (await context.request.get(base + '/api/auth/get-session')).json(), null)
+  await page.getByLabel('Código de tu aplicación autenticadora', { exact: true }).fill(await createOTP(adminTotpSecret).totp())
+  await page.getByRole('button', { name: 'Verificar código', exact: true }).click({ noWaitAfter: true })
+  await page.waitForURL(base + '/dashboard')
+  await page.waitForLoadState('networkidle')
+  console.log('PASS native promoted admin enrollment, login challenge and assured dashboard')
   async function rpc(
     modulePath: string,
     exportName: string,
@@ -685,22 +816,27 @@ try {
   })
   async function purchaseDiagnostics(label: string) {
     const evidence = await page.evaluate(() => ({
-      pathname: location.pathname,
       viewport: { width: innerWidth, height: innerHeight },
       dialogs: Array.from(document.querySelectorAll('dialog.purchase-dialog')).map((dialog) => ({
+        connected: dialog.isConnected,
         open: dialog.hasAttribute('open'),
+        visible: dialog.getBoundingClientRect().width > 0 && dialog.getBoundingClientRect().height > 0 && getComputedStyle(dialog).visibility === 'visible',
         rect: dialog.getBoundingClientRect().toJSON(),
-        buttons: Array.from(dialog.querySelectorAll('button')).map((button) => ({
-          name: button.getAttribute('aria-label') ?? button.textContent?.trim(),
-          disabled: button.disabled,
-          rect: button.getBoundingClientRect().toJSON(),
-        })),
+        summaryPresent: !!dialog.querySelector('.purchase-summary'),
+        footerPresent: !!dialog.querySelector('.purchase-footer'),
+        refreshing: Array.from(dialog.querySelectorAll('[role="status"]')).some((node) => node.textContent?.trim() === 'Verificando compra'),
+        loading: Array.from(dialog.querySelectorAll('[role="status"]')).some((node) => node.textContent?.trim() === 'Cargando datos del servidor…'),
+        saving: Array.from(dialog.querySelectorAll('[role="status"]')).some((node) => node.textContent?.trim() === 'Guardando en servidor…'),
+        errorCode: dialog.querySelector('[role="alert"]') ? 'UI_ALERT_PRESENT' : 'NONE',
+        closeDisabled: dialog.querySelector<HTMLButtonElement>('[aria-label="Cerrar compra"]')?.disabled ?? null,
+        disabledButtonCount: dialog.querySelectorAll('button:disabled').length,
       })),
     }))
-    writeFileSync(`/tmp/juliorifa-purchase-close-${label}.json`, JSON.stringify(evidence, null, 2))
-    await page.screenshot({ path: `/tmp/juliorifa-purchase-close-${label}.png`, mask: [page.locator('.purchase-summary, .proof-preview, .purchase-bank, .purchase-raffle, .purchase-timeline, .purchase-dialog h2, .purchase-dialog textarea')] })
+    // Only fixed checkpoint labels, DOM flags/counts and geometry; no text, URLs or purchase data.
+    console.log('CHECK purchase UI:', JSON.stringify({ checkpoint: label, ...evidence }))
   }
   async function checkPurchaseRefresh(dialog: any, names: string[]) {
+    await purchaseDiagnostics('refresh-before-click')
     let release!: () => void
     let intercepted!: () => void
     const gate = new Promise<void>((resolve) => { release = resolve })
@@ -720,9 +856,13 @@ try {
       await dialog.getByRole('button', { name: 'Actualizar', exact: true }).click()
       await started
       await dialog.getByText('Verificando compra', { exact: true }).waitFor()
+      await purchaseDiagnostics('refresh-held')
       for (const name of names) assert.equal(await dialog.getByRole('button', { name, exact: true }).isDisabled(), true, `${name}: cached purchase cannot authorize during refresh`)
       assert.equal(await dialog.getByRole('button', { name: 'Cerrar compra', exact: true }).isDisabled(), false)
       assert.equal(posts, 0, 'refresh never submits a mutation')
+    } catch (error) {
+      await purchaseDiagnostics('refresh-held-failure').catch(() => console.log('CHECK purchase UI: DIAGNOSTIC_UNAVAILABLE'))
+      throw error
     } finally {
       release()
       await page.unroute('**/*', hold)
@@ -731,13 +871,20 @@ try {
       await dialog.getByText('Verificando compra', { exact: true }).waitFor({ state: 'hidden' })
       for (const name of names) assert.equal(await dialog.getByRole('button', { name, exact: true }).isDisabled(), false, `${name}: fresh purchase restores eligibility`)
       assert.equal(posts, 0, 'fresh data never submits a mutation before explicit click')
+      await purchaseDiagnostics('refresh-complete')
+    } catch (error) {
+      await purchaseDiagnostics('refresh-completion-failure').catch(() => console.log('CHECK purchase UI: DIAGNOSTIC_UNAVAILABLE'))
+      throw error
     } finally {
       page.off('request', countPost)
     }
   }
   async function checkPurchaseLayout(dialog: any, state: string) {
     for (const [width, height] of [[1440, 900], [390, 844], [390, 480]]) {
+      await purchaseDiagnostics(`layout-${state}-${width}x${height}-before-resize`)
       await page.setViewportSize({ width, height })
+      await purchaseDiagnostics(`layout-${state}-${width}x${height}-after-resize`)
+      try {
       assert.ok(await dialog.evaluate((element: HTMLDialogElement) => {
         const box = element.getBoundingClientRect()
         const close = element.querySelector('[aria-label="Cerrar compra"]')!.getBoundingClientRect()
@@ -750,10 +897,18 @@ try {
         await dialog.locator('.purchase-body').evaluate((element: HTMLElement) => { element.scrollTop = 0 })
       }
       await page.screenshot({ path: `/tmp/juliorifa-purchase-${state}-${width}x${height}.png` })
+      await purchaseDiagnostics(`layout-${state}-${width}x${height}-complete`)
+      } catch (error) {
+        await purchaseDiagnostics(`layout-${state}-${width}x${height}-failure`).catch(() => {
+          console.log('CHECK purchase UI: DIAGNOSTIC_UNAVAILABLE')
+        })
+        throw error
+      }
     }
     await page.setViewportSize({ width: 1440, height: 900 })
     if (state === 'paid') await purchaseDiagnostics('restored')
   }
+  await purchaseDiagnostics('reviewing-before-summary')
   assert.equal(await purchaseDialog.locator('.purchase-summary').evaluate((element: HTMLElement) => getComputedStyle(element).display), 'block')
   assert.equal(await purchaseDialog.getByText('Por confirmar', { exact: true }).count(), 1)
   await checkPurchaseLayout(purchaseDialog, 'reviewing')
@@ -908,6 +1063,25 @@ try {
   assert.equal(await drawStatus.count(), 0, 'closed detail keeps DrawStatus absent')
   const productBeforeDraw = page.url()
   const beforeDraw = await (await helper('counts')).json()
+  const health = await context.request.get(base + '/api/health')
+  assert.equal(health.status(), 200)
+  assert.deepEqual(await health.json(), { code: 'HEALTH_OK' })
+  for (const [method, suffix, status, code] of [
+    ['GET', '', 503, 'MAINTENANCE_DISABLED'],
+    ['GET', '?batch=25', 400, 'INVALID_QUERY'],
+    ['POST', '', 405, 'METHOD_NOT_ALLOWED'],
+  ] as const) {
+    const maintenance = await context.request.fetch(base + '/api/cron/maintenance' + suffix, { method })
+    assert.equal(maintenance.status(), status)
+    assert.deepEqual(await maintenance.json(), { code })
+    for (const response of [health, maintenance]) {
+      assert.equal(response.headers()['cache-control'], 'private, no-store')
+      assert.equal(response.headers()['x-content-type-options'], 'nosniff')
+      assert.equal(response.headers()['referrer-policy'], 'no-referrer')
+    }
+  }
+  assert.deepEqual(await (await helper('counts')).json(), beforeDraw)
+  console.log('PASS health liveness and denied maintenance without purchase/outbox/message changes')
   for (const token of [undefined, 'wrong-fixture', 'isolated-cron-fixture-only']) {
     const response = await context.request.get(base + '/api/cron/draw', {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -1628,7 +1802,7 @@ try {
       proofPosts++
   })
   const proofInput = payment.getByLabel(
-    'Subir comprobante (PNG, JPEG, WebP o PDF; máximo 10 MB)',
+    'Subir comprobante (PNG, JPEG, WebP o PDF; máximo 4 MiB)',
     { exact: true },
   )
   await proofInput.setInputFiles({
@@ -1638,8 +1812,16 @@ try {
   })
   await payment.getByRole('alert').waitFor()
   assert.equal(proofPosts, 0)
+  await proofInput.setInputFiles({
+    name: 'too-large.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.alloc(4 * 1024 * 1024 + 1),
+  })
+  await payment.getByRole('alert').waitFor()
+  assert.equal(proofPosts, 0, 'oversized selection must never upload')
+  assert.equal((await rpc(purchaseModule, 'ownPurchase', { id: signupOrderId }, signupPage)).status, 'awaiting_proof')
   await payment
-    .getByLabel('Subir comprobante (PNG, JPEG, WebP o PDF; máximo 10 MB)', {
+    .getByLabel('Subir comprobante (PNG, JPEG, WebP o PDF; máximo 4 MiB)', {
       exact: true,
     })
     .setInputFiles({ name: 'proof.png', mimeType: 'image/png', buffer: png })
@@ -1858,7 +2040,7 @@ try {
     ;[shortResponse] = await shortSubmit()
   }
   assert.equal(shortResponse.status(), 200)
-  await shortPage.waitForURL(base + '/dashboard')
+  await enrollAdminUI(shortPage, shortPassword)
   await shortPage.waitForLoadState('networkidle')
   const shortSession = await (
     await shortContext.request.get(base + '/api/auth/get-session')
@@ -1903,6 +2085,40 @@ try {
   await page.goto(base + '/dashboard#configuración')
   const settings = page.getByRole('region', { name: 'Métodos de pago' })
   await settings.getByRole('heading', { name: 'Agregar destino' }).waitFor()
+  stage = 'public business contact admin edit and anonymous safe links'
+  const contactModule = '/src/modules/settings/contact-server.ts'
+  const contactSettings = settings.getByRole('region', { name: 'Contacto público del negocio' })
+  await contactSettings.getByLabel('Teléfono del negocio (opcional)').fill('+52 (55) 1234-5678')
+  await contactSettings.getByLabel('WhatsApp del negocio (opcional)').fill('+52 (55) 8765-4321')
+  await contactSettings.getByRole('button', { name: 'Guardar contacto' }).click()
+  await contactSettings.getByText('Contacto guardado', { exact: true }).waitFor()
+  await context.clearCookies()
+  await page.goto(base + '/')
+  const contactLinks = page.getByRole('region', { name: 'Contacto del negocio', exact: true })
+  await contactLinks.getByRole('link', { name: 'WhatsApp: +525587654321' }).waitFor()
+  assert.equal(await contactLinks.getByRole('link', { name: 'Llamar: +525512345678' }).getAttribute('href'), 'tel:+525512345678')
+  const whatsappLink = contactLinks.getByRole('link', { name: 'WhatsApp: +525587654321' })
+  assert.equal(await whatsappLink.getAttribute('href'), 'https://wa.me/525587654321')
+  assert.equal(await whatsappLink.getAttribute('rel'), 'noopener noreferrer')
+  assert.equal(await whatsappLink.getAttribute('referrerpolicy'), 'no-referrer')
+  assert.deepEqual(await rpc(contactModule, 'publicBusinessContact', {}), { phone: '+525512345678', whatsapp: '+525587654321' })
+  await assert.rejects(rpc(contactModule, 'saveBusinessContact', { phone: '', whatsapp: '' }))
+  await context.addCookies(clientCookies)
+  await assert.rejects(rpc(contactModule, 'adminBusinessContact', {}))
+  await assert.rejects(rpc(contactModule, 'saveBusinessContact', { phone: '', whatsapp: '' }))
+  await context.clearCookies()
+  await context.addCookies(adminCookies)
+  await page.goto(base + '/dashboard#configuración')
+  await contactSettings.getByLabel('Teléfono del negocio (opcional)').fill('')
+  await contactSettings.getByLabel('WhatsApp del negocio (opcional)').fill('')
+  await contactSettings.getByRole('button', { name: 'Guardar contacto' }).click()
+  await contactSettings.getByText('Contacto guardado', { exact: true }).waitFor()
+  await page.goto(base + '/')
+  assert.deepEqual(await rpc(contactModule, 'publicBusinessContact', {}), { phone: null, whatsapp: null })
+  assert.equal(await contactLinks.count(), 0)
+  await page.goto(base + '/dashboard#configuración')
+  await settings.getByRole('heading', { name: 'Agregar destino' }).waitFor()
+  console.log('PASS business contact admin edit, anonymous allowlist, safe links, client denial and disabling')
   const destinationA = '012345678901234567'
   const destinationB = '987654321098765432'
   async function addDestination(number: string) {
@@ -1926,7 +2142,7 @@ try {
   await page.getByText(destinationA, { exact: true }).waitFor()
   await page.getByText(destinationB, { exact: true }).waitFor()
   assert.equal(await page.getByRole('button', { name: 'Copiar CLABE', exact: true }).count(), 2)
-  await page.getByLabel('Subir comprobante (PNG, JPEG, WebP o PDF; máximo 10 MB)', { exact: true }).waitFor()
+  await page.getByLabel('Subir comprobante (PNG, JPEG, WebP o PDF; máximo 4 MiB)', { exact: true }).waitFor()
   await context.clearCookies()
   await context.addCookies(adminCookies)
   await page.goto(base + '/dashboard#configuración')
@@ -1992,6 +2208,10 @@ try {
   console.log('PASS actual logout and no previous private bank/account view')
   }
 } catch (error) {
+  if (authUiSnapshot) {
+    const snapshot = await authUiSnapshot().catch(() => ({ ui: 'UNAVAILABLE' }))
+    console.error('CHECK auth UI failure:', JSON.stringify(snapshot))
+  }
   if (error instanceof assert.AssertionError)
     console.error(
       `Assertion: ${String(error.message)

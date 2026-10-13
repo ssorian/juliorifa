@@ -1,3 +1,17 @@
+.nova-public .site-footer {
+  flex-wrap: wrap;
+}
+.nova-public .business-contact-links {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.nova-public .business-contact-links h2 {
+  font-size: 1.15rem;
+}
+.nova-public .business-contact-links a {
+  text-decoration: underline;
+}
+
 .nova-public {
   min-height: 100vh;
   color: #f6f5fa;

@@ -11,6 +11,22 @@ import {
 import { user } from '../../auth/db/schema'
 import { methodTypes } from '../domain'
 
+export const businessContact = pgTable(
+  'business_contact',
+  {
+    id: text('id').primaryKey().default('business'),
+    phone: text('phone'),
+    whatsapp: text('whatsapp'),
+    updatedBy: text('updated_by').notNull().references(() => user.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check('business_contact_singleton', sql`${t.id} = 'business'`),
+    check('business_contact_phone', sql`${t.phone} is null or ${t.phone} ~ '^\\+[1-9][0-9]{7,14}$'`),
+    check('business_contact_whatsapp', sql`${t.whatsapp} is null or ${t.whatsapp} ~ '^\\+[1-9][0-9]{7,14}$'`),
+  ],
+)
+
 export const paymentMethods = pgTable(
   'payment_methods',
   {

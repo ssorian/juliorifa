@@ -10,7 +10,7 @@ export const passwordSettings = {
 
 export const authRateLimit = {
   enabled: true,
-  storage: 'memory',
+  storage: 'database',
   customRules: {
     '/sign-in/email': { max: 5, window: 60 },
     '/sign-up/email': { max: 5, window: 60 },

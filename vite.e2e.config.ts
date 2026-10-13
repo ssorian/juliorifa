@@ -27,7 +27,8 @@ globalThis.fetch = (input, init) => {
     throw new Error('Fixture blocked outbound fetch')
   return originalFetch(input, init)
 }
-const { default: base } = await import('./vite.config')
+const { default: baseConfig } = await import('./vite.config')
+const base = baseConfig({ command: 'serve', mode: 'development' })
 const root = process.cwd()
 const replacements = new Map([
   [resolve(root, 'src/db/index.ts'), resolve(root, 'tests/e2e/db.ts')],

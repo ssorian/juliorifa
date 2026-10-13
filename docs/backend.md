@@ -1,5 +1,15 @@
 # Backend de rifas: bloques 1–4
 
+## Preparación Vercel — límite vigente de comprobantes nuevos
+
+Nuevos uploads de comprobantes: **4 MiB (4,194,304 bytes)**, tanto en selección cliente como lector/validación servidor; imágenes continúan en 2 MiB. La descarga y los constraints históricos conservan hasta 10 MiB para no invalidar evidencia existente. Vercel limita payload de request y response a 4.5 MB: antes de desplegar, resolver comprobantes históricos mayores mediante operación autorizada, no URLs bearer públicas ni borrado de evidencia. RED por límite anterior observado y GREEN 15 pruebas focales; preparación no acredita despliegue. [Checklist vigente](tasks/production-readiness.md).
+
+## Contacto público del negocio — bloque 1
+
+Configuración incorpora teléfono y WhatsApp del negocio como dos canales opcionales independientes de los destinos bancarios. Vacío deshabilita el canal; el footer público muestra enlaces `tel:` y `wa.me` manuales, sin mensajes automáticos. Normalización internacional compartida con Auth; GET público permite únicamente phone/whatsapp y las operaciones administrativas exigen requireAdmin fresco. No publica contactos de clientes, bancos ni actor. Correo sigue pospuesto y Notificaciones retirada.
+
+**0007 aplicada bajo autorización explícita en la DB configurada de desarrollo/testing**, con preflight/postflight de hash/fecha y constraints. Pruebas focales, tipos/build, E2E e independiente PASS; suite final 183/183. 0008 Auth también aplicada en ese destino: MFA administrativo por sesión y limiter PostgreSQL ([contrato](tasks/auth-production.md)). No acredita otro destino ni despliegue. Ver [contacto](tasks/public-contact.md) y [checklist de producción](tasks/production-readiness.md). Esta ampliación reemplaza únicamente la limitación histórica de Configuración a destinos bancarios en las secciones siguientes.
+
 ## Destinos manuales — Configuración vigente
 
 Configuración vuelve únicamente para agregar/editar/activar/desactivar destinos CLABE (18 dígitos), tarjeta (16) y cuenta (1–20), con banco, beneficiario e instrucciones opcionales. `src/modules/settings/` posee dominio, tabla, servicios, serverFns con requireAdmin fresco y UI; consultas privadas usan caché administrativa por identidad. No procesamiento de pagos ni validación de titularidad.

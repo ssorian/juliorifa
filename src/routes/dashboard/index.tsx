@@ -8,6 +8,7 @@ export const Route = createFileRoute('/dashboard/')({
     const user = await currentUser()
     if (!user) throw redirect({ href: '/login' })
     if (!dashboardAccess(user)) throw redirect({ href: '/' })
+    if (user.mfaRequired) throw redirect({ href: '/seguridad' })
   },
   component: Dashboard,
 })

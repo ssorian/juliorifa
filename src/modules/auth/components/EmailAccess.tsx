@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { authClient } from '../../../lib/auth-client'
 import { completionPath, safeCheckoutId } from '../lib/policy'
 import { normalizePhone } from '../lib/phone'
+import { MfaVerification } from './MfaVerification'
 
 export function EmailAccess({
   signup,
@@ -18,6 +19,7 @@ export function EmailAccess({
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [busy, setBusy] = useState(false)
+  const [challenge, setChallenge] = useState(false)
   const [message, setMessage] = useState(
     error ? 'No pudimos completar el acceso. Intenta de nuevo.' : '',
   )
@@ -45,14 +47,14 @@ export function EmailAccess({
         <section className="nova-auth-card" aria-labelledby="nova-auth-title">
           <p className="nova-auth-eyebrow">// ACCESS</p>
           <h1 id="nova-auth-title">
-            {signup ? 'Crear cuenta cliente' : 'Iniciar sesión'}
+            {challenge ? 'Verificación en dos pasos' : signup ? 'Crear cuenta cliente' : 'Iniciar sesión'}
           </h1>
           <p>
             {signup
               ? 'Crea una cuenta cliente con contraseña de 12 a 128 caracteres; el registro no verifica la propiedad del correo.'
               : 'Accede con tu correo y contraseña actual.'}
           </p>
-          <form
+          {challenge ? <MfaVerification checkout={checkout} /> : <form
             onSubmit={async (event) => {
               event.preventDefault()
               if (busy) return
@@ -85,6 +87,10 @@ export function EmailAccess({
                   setMessage(
                     'No pudimos completar el acceso. Revisa los datos o intenta más tarde.',
                   )
+                } else if (result.data && 'twoFactorRedirect' in result.data && result.data.twoFactorRedirect) {
+                  setPassword('')
+                  setChallenge(true)
+                  setMessage('Introduce el código de tu aplicación o un respaldo de un solo uso.')
                 } else {
                   window.location.assign(completionPath(checkout))
                 }
@@ -169,7 +175,7 @@ export function EmailAccess({
                   ? 'Crear cuenta'
                   : 'Iniciar sesión'}
             </button>
-          </form>
+          </form>}
           <p className="nova-auth-status" role="status" aria-live="polite">
             {message}
           </p>

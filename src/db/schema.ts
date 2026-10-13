@@ -1,6 +1,6 @@
 import { pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core'
 
-export { user, session, account, verification } from '../modules/auth/db/schema'
+export { user, session, account, verification, rateLimit, twoFactor } from '../modules/auth/db/schema'
 export { raffles, draws } from '../modules/raffles/db/schema'
 export {
   purchases,
@@ -10,7 +10,7 @@ export {
   paymentSettings,
   paymentSettingsEvents,
 } from '../modules/purchases/db/schema'
-export { paymentMethods } from '../modules/settings/db/schema'
+export { paymentMethods, businessContact } from '../modules/settings/db/schema'
 export { notificationOutbox } from '../modules/notifications/db/schema'
 export { mediaAssets, uploadBudgets, uploadLeases } from '../lib/storage/db'
 

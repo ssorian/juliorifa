@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { PublicBusinessContact } from '../settings/PublicBusinessContact'
 import { Catalog, PublicRules } from './components/Catalog'
 import { ProductDetail } from './components/ProductDetail'
 import BetterAuthHeader from '../../integrations/better-auth/header-user'
@@ -163,6 +164,7 @@ export function Public() {
             NOVA<small>RIFAS</small>
           </span>
         </a>
+        <PublicBusinessContact />
         <span>HECHO PARA TU PRÓXIMO NIVEL.</span>
         <small>© 2026 Nova · Transferencia y revisión manual</small>
       </footer>

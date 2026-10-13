@@ -9,6 +9,7 @@ import {
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 import { db } from '../db'
 import { authConfig } from '../config/auth'
+import { adminMfaPlugins } from '../modules/auth/lib/admin-mfa'
 import { initialRole } from '../modules/auth/lib/policy'
 import {
   passwordSettings,
@@ -48,5 +49,5 @@ export const auth = betterAuth({
       }
     }),
   },
-  plugins: [tanstackStartCookies()],
+  plugins: [...adminMfaPlugins(), tanstackStartCookies()],
 })
