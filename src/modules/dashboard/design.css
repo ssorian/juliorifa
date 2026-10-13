@@ -360,15 +360,6 @@
   font-size: 0.8125rem;
   color: #9b95aa;
 }
-.nova-admin .local-demo {
-  padding: 4px 8px;
-  background: #27172c;
-  border: 1px solid #5c345b;
-  color: #ce9dd9;
-  font-family: Condensed, sans-serif;
-  letter-spacing: 0.1em;
-  font-size: 0.75rem;
-}
 .nova-admin #admin-main {
   padding: 32px 38px 38px;
   flex: 1;
@@ -1958,10 +1949,6 @@ dialog {
   }
   .nova-admin .breadcrumb > span {
     padding-inline: 7px;
-  }
-  .nova-admin .local-demo {
-    font-size: 0.75rem;
-    letter-spacing: 0.03em;
   }
   .nova-admin .page-heading {
     align-items: flex-start;

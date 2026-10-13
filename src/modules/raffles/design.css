@@ -196,13 +196,6 @@
   border-bottom: 2px solid var(--red);
   padding-block: 10px;
 }
-.nova-public .demo-badge {
-  font-size: 0.75rem;
-  letter-spacing: 0.13em;
-  color: #b2b0c6;
-  border: 1px solid #44415d;
-  padding: 4px 9px;
-}
 .nova-public .side-signal {
   position: absolute;
   left: 25px;
@@ -591,12 +584,6 @@
   color: #aaa4be;
   font-size: 1rem;
   line-height: 1.65;
-}
-.nova-public .demo-note {
-  font-size: 0.8125rem;
-  color: #8f879f;
-  line-height: 1.6;
-  margin-top: 24px;
 }
 .nova-public .faq-section {
   display: grid;
@@ -1144,11 +1131,6 @@
 .nova-public .desktop-checkout .button {
   min-width: 180px;
 }
-.nova-public .panel-demo {
-  text-align: center;
-  margin-top: 12px;
-  font-size: 0.75rem;
-}
 .nova-public .mobile-checkout {
   display: none;
 }
@@ -1499,9 +1481,6 @@
     margin-top: 16px;
     width: 100%;
   }
-  .nova-public .panel-demo {
-    margin-top: 18px;
-  }
 }
 @media (max-width: 560px) {
   html {
@@ -1540,11 +1519,6 @@
   }
   .nova-public .site-header nav a:nth-child(2) {
     display: none;
-  }
-  .nova-public .demo-badge {
-    font-size: 0.75rem;
-    padding: 3px 6px;
-    letter-spacing: 0.07em;
   }
   .nova-public .catalog {
     padding-top: 30px;
@@ -1698,9 +1672,6 @@
   }
   .nova-public .steps p {
     font-size: 1rem;
-  }
-  .nova-public .demo-note {
-    font-size: 0.8125rem;
   }
   .nova-public .faq-section {
     grid-template-columns: 1fr;
@@ -1869,9 +1840,6 @@
     font-size: 0.875rem;
   }
   .nova-public .panel-note {
-    font-size: 0.8125rem;
-  }
-  .nova-public .panel-demo {
     font-size: 0.8125rem;
   }
   .nova-public .mobile-checkout {

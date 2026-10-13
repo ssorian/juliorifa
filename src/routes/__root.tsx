@@ -27,7 +27,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'Rifas Nova · Demo local',
+        title: 'Rifas Nova',
       },
     ],
     links: [

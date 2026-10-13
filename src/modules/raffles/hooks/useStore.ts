@@ -17,13 +17,13 @@ export function useStore() {
         setNotice(raw ? 'Datos locales cargados.' : '')
       } catch {
         setStore(seed)
-        setNotice('Datos locales inválidos: se usa la demo inicial.')
+        setNotice('Datos locales inválidos: se restauran los datos iniciales.')
       }
     }
     try {
       load(localStorage.getItem(KEY))
     } catch {
-      setNotice('Almacenamiento no disponible: demo solo en esta sesión.')
+      setNotice('Almacenamiento no disponible: los cambios solo se conservarán en esta sesión.')
     }
     ready.current = true
     function onStorage(event: StorageEvent) {
